@@ -1,0 +1,18 @@
+{
+  "name": "undc-inscripciones",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n API,WEB -c blue,green \"pnpm --filter @undc/backend run dev\" \"pnpm --filter @undc/frontend run dev\"",
+    "build": "pnpm --filter @undc/backend run build && pnpm --filter @undc/frontend run build",
+    "test": "pnpm --filter @undc/backend run test",
+    "db:generate": "pnpm --filter @undc/backend run db:generate",
+    "db:migrate": "pnpm --filter @undc/backend run db:migrate",
+    "db:seed": "pnpm --filter @undc/backend run db:seed",
+    "admin:create": "pnpm --filter @undc/backend run admin:create",
+    "db:check": "pnpm --filter @undc/backend run db:check"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "packageManager": "pnpm@11.25.0"
+}

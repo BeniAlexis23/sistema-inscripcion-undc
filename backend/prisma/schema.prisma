@@ -1,0 +1,171 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+enum Role {
+  ADMIN
+  COMMISSION
+  DELEGATE
+}
+enum Sex {
+  FEMALE
+  MALE
+}
+enum Gender {
+  FEMALE
+  MALE
+  MIXED
+}
+enum Discipline {
+  FUTSAL
+  VOLLEYBALL
+  BASKETBALL
+  CHESS
+}
+enum TeamStatus {
+  DRAFT
+  SUBMITTED
+  OBSERVED
+  APPROVED
+}
+enum DocumentKind {
+  ROSTER
+  FITNESS
+  RESPONSIBILITY
+}
+model School {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique @db.VarChar(150)
+  users    User[]
+  athletes Athlete[]
+  teams    Team[]
+}
+model Tournament {
+  id                    Int      @id @default(autoincrement())
+  name                  String   @db.VarChar(200)
+  semester              String   @db.VarChar(20)
+  opensAt               DateTime
+  closesAt              DateTime
+  correctionsEnabled    Boolean  @default(false)
+  basesUrl              String?  @db.VarChar(2048)
+  formatsUrl            String?  @db.VarChar(2048)
+  otherDocumentsUrl     String?  @db.VarChar(2048)
+  teams                 Team[]
+}
+model Category {
+  id         Int        @id @default(autoincrement())
+  name       String     @unique @db.VarChar(100)
+  discipline Discipline
+  gender     Gender
+  teams      Team[]
+  @@unique([discipline, gender])
+}
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique @db.VarChar(191)
+  name         String    @db.VarChar(150)
+  dni          String    @unique @db.VarChar(8)
+  phone        String    @db.VarChar(20)
+  passwordHash String    @db.VarChar(255)
+  role         Role
+  active       Boolean   @default(true)
+  schoolId     Int?
+  school       School?   @relation(fields: [schoolId], references: [id])
+  sessions     Session[]
+  teams        Team[]
+  reviews      Review[]
+  audits       Audit[]
+  createdAt    DateTime  @default(now())
+}
+model Session {
+  id        String   @id @db.VarChar(64)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  @@index([expiresAt])
+}
+model Athlete {
+  id           Int      @id @default(autoincrement())
+  dni          String   @unique @db.VarChar(8)
+  studentCode  String   @unique @db.VarChar(30)
+  firstName    String   @db.VarChar(100)
+  lastName     String   @db.VarChar(150)
+  sex          Sex
+  phone        String   @db.VarChar(20)
+  schoolId     Int
+  school       School   @relation(fields: [schoolId], references: [id])
+  participations Participation[]
+}
+model Team {
+  id           Int       @id @default(autoincrement())
+  tournamentId Int
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+  schoolId     Int
+  school       School    @relation(fields: [schoolId], references: [id])
+  categoryId   Int
+  category     Category  @relation(fields: [categoryId], references: [id])
+  delegateId   Int?
+  delegate     User?     @relation(fields: [delegateId], references: [id])
+  delegateName String?   @db.VarChar(150)
+  delegateDni  String?   @db.VarChar(8)
+  delegatePhone String?  @db.VarChar(20)
+  delegateEmail String?  @db.VarChar(191)
+  receiptCode  String?   @unique @db.VarChar(36)
+  status       TeamStatus @default(DRAFT)
+  version      Int       @default(1)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  participations Participation[]
+  documents    Document[]
+  reviews      Review[]
+  audits       Audit[]
+  @@unique([tournamentId, schoolId, categoryId])
+  @@index([delegateId, status])
+}
+model Participation {
+  id        Int      @id @default(autoincrement())
+  teamId    Int
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  athleteId Int
+  athlete   Athlete  @relation(fields: [athleteId], references: [id])
+  documents Document[]
+  @@unique([teamId, athleteId])
+}
+model Document {
+  id              Int           @id @default(autoincrement())
+  teamId          Int
+  team            Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  participationId Int?
+  participation   Participation? @relation(fields: [participationId], references: [id], onDelete: Cascade)
+  kind            DocumentKind
+  originalName    String        @db.VarChar(255)
+  storageName     String        @unique @db.VarChar(100)
+  mime            String        @db.VarChar(100)
+  size            Int
+  createdAt       DateTime      @default(now())
+  @@index([teamId, kind])
+}
+model Review {
+  id          Int        @id @default(autoincrement())
+  teamId      Int
+  team        Team       @relation(fields: [teamId], references: [id])
+  reviewerId  Int
+  reviewer    User       @relation(fields: [reviewerId], references: [id])
+  result      TeamStatus
+  checks      Json
+  notes       String     @db.Text
+  createdAt   DateTime   @default(now())
+}
+model Audit {
+  id         Int       @id @default(autoincrement())
+  actorId    Int?
+  actor      User?     @relation(fields: [actorId], references: [id])
+  teamId     Int?
+  team       Team?     @relation(fields: [teamId], references: [id])
+  action     String    @db.VarChar(100)
+  details    Json
+  createdAt  DateTime  @default(now())
+}

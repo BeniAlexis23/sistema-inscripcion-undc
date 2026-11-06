@@ -1,0 +1,4 @@
+ALTER TABLE `Tournament`
+  ADD COLUMN `basesUrl` VARCHAR(2048) NULL,
+  ADD COLUMN `formatsUrl` VARCHAR(2048) NULL,
+  ADD COLUMN `otherDocumentsUrl` VARCHAR(2048) NULL;

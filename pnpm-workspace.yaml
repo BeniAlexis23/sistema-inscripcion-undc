@@ -1,0 +1,15 @@
+packages:
+  - backend
+  - frontend
+
+overrides:
+  effect: ^3.20.0
+  deepmerge-ts: ^8.0.0
+
+# Scripts necesarios para los motores y dependencias nativas del proyecto.
+allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
+  argon2: true
+  esbuild: true
+  prisma: true
