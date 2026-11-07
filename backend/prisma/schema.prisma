@@ -101,6 +101,10 @@ model Athlete {
 }
 model Team {
   id           Int       @id @default(autoincrement())
+  name         String?   @db.VarChar(100)
+  cycle        String?   @db.VarChar(20)
+  shift        String?   @db.VarChar(20)
+  section      String?   @db.VarChar(20)
   tournamentId Int
   tournament   Tournament @relation(fields: [tournamentId], references: [id])
   schoolId     Int

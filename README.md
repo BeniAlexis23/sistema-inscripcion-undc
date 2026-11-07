@@ -35,6 +35,8 @@ La carga inicial es idempotente y no sobrescribe fechas ya configuradas. Incluye
 
 ### Crear el primer administrador
 
+También puede abrir `/admin/registro` o usar el enlace **Crear el primer administrador** en el acceso administrativo. Complete nombre, correo, DNI, celular y contraseña; después inicie sesión en `/admin`. El formulario y su API quedan bloqueados en cuanto existe un administrador, incluso si está inactivo. Dos solicitudes simultáneas se serializan con el bloqueo del torneo. Cargue los catálogos antes de usar esta opción y complete la configuración inicial antes de exponer la aplicación a Internet: el primer visitante que complete el formulario se convierte en administrador.
+
 No hay cuentas ni contraseñas predeterminadas. La contraseña se proporciona por stdin para evitar argumentos visibles en la lista de procesos. En PowerShell:
 
 ```powershell
@@ -63,6 +65,8 @@ Comprueba la conexión y los catálogos sin imprimir la contraseña. El backend 
 
 ## Uso
 
+Cada nuevo equipo registra nombre, ciclo, turno (Mañana, Tarde o Noche) y sección. Ciclo se selecciona de I a X y sección entre A y B. Los datos se muestran en el panel, la ficha, la constancia y la portada de reportes; los equipos anteriores conservan estos campos vacíos. Continúa vigente el máximo de un equipo por escuela y categoría.
+
 1. `/` muestra una sola página: navbar institucional con escudo, información breve del torneo, enlaces a documentos y formulario de inscripción.
 2. El delegado completa escuela, categoría, sus datos de contacto y la nómina **sin iniciar sesión ni crear una cuenta**. La ruta anterior `/inscripcion` redirige a este mismo formulario.
 3. Descarga los formatos con los datos registrados, imprime y recoge las firmas físicas. Luego adjunta la ficha y ambas declaraciones por cada deportista (PDF/JPG/PNG, hasta 10 MB por archivo).
@@ -81,6 +85,12 @@ En Administración → Configuración se pueden guardar los enlaces de bases, fo
 Los PDF de consulta están en `backend/public-documents`. Las rutas públicas usan una lista cerrada de archivos; se pueden sustituir los PDF conservando los nombres o configurar `PUBLIC_DOCUMENTS_DIR`. Los adjuntos de participantes se guardan por separado en `STORAGE_DIR` y requieren autenticación administrativa.
 
 ## API REST
+
+### Reportes de documentos aprobados
+
+En `/admin/reports`, administradores y comisión pueden filtrar por deporte, categoría y escuela y descargar los documentos firmados de un equipo o de toda la selección en un solo PDF. Cada equipo incluye una portada institucional; se conservan las páginas de los adjuntos PDF y las imágenes JPG/PNG se ajustan a A4. Solo se incluyen equipos aprobados. Si falta un archivo o un PDF es ilegible o tiene contraseña, la descarga se detiene con el identificador del documento; no entrega un reporte incompleto. Las selecciones están limitadas a 100 MB de adjuntos originales.
+
+API autenticada: `GET /reports/approved` y `GET /reports/approved/pdf`; filtros opcionales `discipline`, `categoryId`, `schoolId` y `teamId`.
 
 Todas las rutas están bajo `/api/v1`. Las rutas `/public` son accesibles sin sesión; el resto del panel requiere autenticación. Las mutaciones requieren `X-Requested-With: undc-web`; cookies de sesión HttpOnly y SameSite Strict, Secure en producción. No se almacenan tokens en localStorage.
 

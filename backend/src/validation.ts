@@ -1,5 +1,11 @@
 import { z } from 'zod';
 z.config(z.locales.es());
+export const teamDetailsShape = {
+  name: z.string().trim().min(2, 'Ingrese el nombre del equipo.').max(100),
+  cycle: z.string().trim().pipe(z.enum(['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'], { error: 'Seleccione un ciclo de I a X.' })),
+  shift: z.enum(['Mañana', 'Tarde', 'Noche']),
+  section: z.string().trim().pipe(z.enum(['A', 'B'], { error: 'Seleccione la sección A o B.' })),
+};
 const name = z.string().trim().min(2).max(100);
 const dni = z.string().regex(/^\d{8}$/, 'El DNI debe contener ocho dígitos.');
 const phone = z.string().regex(/^\+?[\d ]{7,20}$/, 'Ingrese un celular válido.');
@@ -14,7 +20,7 @@ export const userSchema = z.object({
 }).refine(u => u.role !== 'DELEGATE' || !!u.schoolId, { message: 'El delegado requiere una escuela.', path: ['schoolId'] });
 export const reviewSchema = z.object({
   version: z.number().int().positive(), result: z.enum(['OBSERVED', 'APPROVED']), notes: z.string().trim().max(4000),
-  checks: z.object({ roster: z.boolean(), capacity: z.boolean(), fitness: z.boolean(), responsibility: z.boolean(), enrollment: z.boolean(), school: z.boolean(), disciplines: z.boolean(), identity: z.boolean() }),
+  checks: z.object({ roster: z.boolean(), capacity: z.boolean(), fitness: z.boolean(), responsibility: z.boolean(), enrollment: z.boolean(), school: z.boolean(), disciplines: z.boolean(), identity: z.boolean() }).catchall(z.boolean()),
 });
 const documentUrl = z.union([z.literal(''), z.url().max(2048).refine(value => ['https:', 'http:'].includes(new URL(value).protocol), 'Ingrese un enlace HTTP o HTTPS válido.')]).nullable().optional().transform(value => value === '' ? null : value);
 export const settingsSchema = z.object({ opensAt: z.iso.datetime(), closesAt: z.iso.datetime(), correctionsEnabled: z.boolean(), basesUrl: documentUrl, formatsUrl: documentUrl, otherDocumentsUrl: documentUrl })

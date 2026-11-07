@@ -6,13 +6,14 @@ import { mkdir, readFile, unlink } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { config, prisma } from './config.js';
-import { athleteSchema } from './validation.js';
+import { athleteSchema, teamDetailsShape } from './validation.js';
 import { assert, checkCategory, checkDisciplines, checkRoster, checkWindow, normalize } from './rules.js';
 import { detectMime } from './uploads.js';
 import { makePdf } from './pdf.js';
 import type { FullTeam } from './services.js';
 
 export const publicRegistrationSchema = z.object({
+  ...teamDetailsShape,
   schoolId: z.number().int().positive(), categoryId: z.number().int().positive(),
   delegate: z.object({ name: z.string().trim().min(2).max(150), dni: z.string().regex(/^\d{8}$/), phone: z.string().regex(/^\+?[\d ]{7,20}$/), email: z.email().max(191).transform(s => s.toLowerCase()) }),
   athletes: z.array(athleteSchema).min(1, 'Registre al menos un deportista.').max(12),
@@ -42,6 +43,17 @@ publicRouter.get('/documents/:id', (req, res, next) => {
 });
 const publicLimit = rateLimit({ windowMs: 60 * 60000, limit: 15, standardHeaders: true, legacyHeaders: false, message: { message: 'Se alcanzó el límite de solicitudes. Intente nuevamente más tarde.' } });
 const formatLimit = rateLimit({ windowMs: 15 * 60000, limit: 120, standardHeaders: true, legacyHeaders: false, message: { message: 'Espere unos minutos antes de generar más formatos.' } });
+publicRouter.get('/receipts/:code', formatLimit, async (req, res) => {
+  const receiptCode = z.uuid().parse(req.params.code);
+  // Only receipt metadata is queried: never expose contacts, rosters or attachments.
+  const receipt = await prisma.team.findUnique({ where: { receiptCode }, select: {
+    name: true, cycle: true, shift: true, section: true, receiptCode: true, createdAt: true, school: { select: { name: true } }, category: { select: { name: true } },
+  } });
+  assert(receipt, 'Constancia no encontrada.', 404);
+  const doc = makePdf({ ...receipt, participations: [] } as unknown as FullTeam, 'receipt');
+  res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="constancia-${receiptCode}.pdf"`, 'Cache-Control': 'no-store' });
+  doc.pipe(res); doc.end();
+});
 publicRouter.post('/formats/:kind', formatLimit, async (req, res) => {
   const data = publicRegistrationSchema.parse(req.body);
   const kind = z.enum(['roster', 'fitness', 'responsibility']).parse(req.params.kind);
@@ -53,6 +65,7 @@ publicRouter.post('/formats/:kind', formatLimit, async (req, res) => {
   if (kind !== 'roster') assert(index < data.athletes.length, 'Deportista no encontrado.');
   const team = {
     id: 0, version: 1, school, category, tournament, delegate: { ...data.delegate, id: null },
+    name: data.name, cycle: data.cycle, shift: data.shift, section: data.section,
     participations: data.athletes.map((a, i) => ({ id: i + 1, athleteId: i + 1, teamId: 0, athlete: { ...a, id: i + 1, schoolId: school.id } })),
     reviews: [], documents: [], audits: [],
   } as unknown as FullTeam;
@@ -88,6 +101,7 @@ publicRouter.post('/registrations', publicLimit, async (_req, _res, next) => { a
       checkRoster(category.discipline, data.athletes.map(a => a.sex));
       const team = await tx.team.create({ data: {
         tournamentId: tournament.id, schoolId: school.id, categoryId: category.id, status: 'SUBMITTED', receiptCode,
+        name: data.name, cycle: data.cycle, shift: data.shift, section: data.section,
         delegateName: data.delegate.name, delegateDni: data.delegate.dni, delegatePhone: data.delegate.phone, delegateEmail: data.delegate.email,
       } });
       const ids: number[] = [];

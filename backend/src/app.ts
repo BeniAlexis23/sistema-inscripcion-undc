@@ -13,10 +13,12 @@ import { z, ZodError } from 'zod';
 import { config, prisma } from './config.js';
 import { authenticate, cookieOptions, createSession, currentUser, hashToken, publicUser, roles } from './auth.js';
 import { assert, CHECK_KEYS, checkEditable, checkWindow, HttpError } from './rules.js';
-import { reviewSchema, settingsSchema, userSchema } from './validation.js';
+import { reviewSchema, settingsSchema, userSchema, teamDetailsShape } from './validation.js';
 import { addAthlete, editAthlete, audit, changeStatus, getTeam, validateSubmission, withTeam } from './services.js';
 import { makePdf } from './pdf.js';
 import { publicRouter } from './public.js';
+import { setupRouter } from './setup.js';
+import { reportsRouter } from './reports.js';
 import { presentTeam } from './services.js';
 import { detectMime } from './uploads.js';
 export { detectMime } from './uploads.js';
@@ -38,6 +40,7 @@ app.use((req, _res, next) => {
 const api = express.Router();
 app.use('/api/v1', api);
 api.use('/public', publicRouter);
+api.use('/setup', setupRouter);
 const idOf = (value: unknown) => z.coerce.number().int().positive().parse(value);
 const paging = (query: Record<string, unknown>) => ({
   page: z.coerce.number().int().min(1).max(100000).default(1).parse(query.page),
@@ -56,6 +59,7 @@ api.post('/sessions', rateLimit({ windowMs: 15 * 60000, limit: 20, standardHeade
 });
 const dummyHash = argon2.hash(randomUUID());
 api.use(authenticate);
+api.use('/reports', reportsRouter);
 api.get('/sessions/me', (req, res) => { res.json(publicUser(currentUser(req))); });
 api.delete('/sessions', async (req, res) => {
   await prisma.session.deleteMany({ where: { id: hashToken(req.cookies.undc_session) } });
@@ -126,14 +130,14 @@ api.get('/teams', async (req, res) => {
 });
 api.post('/teams', async (req, res) => {
   const user = currentUser(req);
-  const input = z.object({ categoryId: z.number().int().positive(), delegateId: z.number().int().positive().optional() }).parse(req.body);
+  const input = z.object({ ...teamDetailsShape, categoryId: z.number().int().positive(), delegateId: z.number().int().positive().optional() }).parse(req.body);
   const delegate = user.role === 'DELEGATE' ? user : await prisma.user.findUnique({ where: { id: input.delegateId || 0 } });
   assert(delegate && delegate.active && delegate.role === 'DELEGATE' && delegate.schoolId, 'Seleccione un delegado activo con escuela asignada.');
   const tournament = await prisma.tournament.findFirst({ orderBy: { id: 'asc' } }); assert(tournament, 'Ejecute la carga inicial de catálogos.', 409);
   const result = await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM Tournament WHERE id = ${tournament.id} FOR UPDATE`;
     const t = await tx.tournament.findUniqueOrThrow({ where: { id: tournament.id } }); checkWindow(t, 'DRAFT');
-    const team = await tx.team.create({ data: { tournamentId: t.id, schoolId: delegate.schoolId!, delegateId: delegate.id, categoryId: input.categoryId } });
+    const team = await tx.team.create({ data: { name: input.name, cycle: input.cycle, shift: input.shift, section: input.section, tournamentId: t.id, schoolId: delegate.schoolId!, delegateId: delegate.id, categoryId: input.categoryId } });
     await audit(tx, user, 'TEAM_CREATED', team.id); return team;
   });
   res.status(201).json(result);

@@ -14,6 +14,19 @@ async function finish(doc: PDFKit.PDFDocument) {
   doc.end(); return completed;
 }
 describe('Formatos con membrete oficial', () => {
+  it('mantiene la ficha habitual en una página al incluir los datos del equipo', async () => {
+    const doc = makePdf({ ...team, name: 'Los Halcones', cycle: 'VI', shift: 'Mañana', section: 'A' }, 'roster');
+    expect(doc.bufferedPageRange().count).toBe(1);
+    await finish(doc);
+  });
+  it('genera la constancia en una página A4 con membrete institucional', async () => {
+    const receipt = { ...team, receiptCode: 'b41a0b73-c9b2-4380-87cb-b4279dd403bb', createdAt: new Date('2026-11-07T02:00:00Z') };
+    const doc = makePdf(receipt, 'receipt');
+    expect(doc.bufferedPageRange().count).toBe(1);
+    const data = await finish(doc);
+    expect(data.subarray(0, 5).toString()).toBe('%PDF-');
+    expect(data.toString('latin1')).toContain('/Subtype /Image');
+  });
   it.each(['roster', 'fitness', 'responsibility', 'control'])('%s conserva una página con datos normales e incorpora el membrete', async kind => {
     const doc = makePdf(team, kind, 1, ['Futsal', 'Vóleibol']);
     expect(doc.bufferedPageRange().count).toBe(1);

@@ -58,6 +58,7 @@ describe('Protecciones HTTP', () => {
   it('deniega equipos y descargas sin sesión', async () => {
     expect((await request(app).get('/api/v1/teams')).status).toBe(401);
     expect((await request(app).get('/api/v1/documents/1')).status).toBe(401);
+    expect((await request(app).get('/api/v1/reports/approved/pdf')).status).toBe(401);
   });
   it('rechaza mutaciones sin cabecera y orígenes externos', async () => {
     expect((await request(app).post('/api/v1/sessions').send({})).status).toBe(403);

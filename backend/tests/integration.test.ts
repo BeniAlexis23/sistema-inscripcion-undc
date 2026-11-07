@@ -101,7 +101,7 @@ describe.skipIf(!url)('Flujo real MySQL, permisos y concurrencia', () => {
     expect((await request(app).delete(`/api/v1/teams/${t.id}/athletes/${p.body.id}`).set(H).set('Cookie', delegateCookie)).status).toBe(204);
     expect(await prisma.participation.count({ where: { athleteId: p.body.athleteId } })).toBe(0);
   });
-  const publicBody = (category: string, school = schoolId, athlete = makeAthlete()) => ({ schoolId: school, categoryId: categories.find(c => c.discipline === category && c.gender === 'MALE')!.id, delegate: { name: 'Delegado público de prueba', dni: dni(), phone: '999999999', email: 'delegado@test.invalid' }, athletes: [athlete], acceptedBases: true });
+  const publicBody = (category: string, school = schoolId, athlete = makeAthlete()) => ({ name: "Equipo de prueba", cycle: "VI", shift: "Mañana", section: "A", schoolId: school, categoryId: categories.find(c => c.discipline === category && c.gender === 'MALE')!.id, delegate: { name: 'Delegado público de prueba', dni: dni(), phone: '999999999', email: 'delegado@test.invalid' }, athletes: [athlete], acceptedBases: true });
   async function sendPublic(data: ReturnType<typeof publicBody>, withFiles = true) {
     let r = request(app).post('/api/v1/public/registrations').set(H).field('data', JSON.stringify(data));
     if (withFiles) for (const name of ['roster', 'fitness_0', 'responsibility_0']) r = r.attach(name, Buffer.from('%PDF-1.4\n%%EOF'), { filename: 'firmado.pdf', contentType: 'application/pdf' });

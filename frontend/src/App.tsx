@@ -55,6 +55,8 @@ import { Button } from "./components/ui/button";
 import { DownloadButton } from "./components/ui/download-button";
 import { Input } from "./components/ui/input";
 import { Card } from "./components/ui/card";
+import { ReviewDocuments } from "./components/ReviewDocuments";
+import Reports from "./Reports";
 z.config(z.locales.es());
 
 const checks: Record<string, string> = {
@@ -274,12 +276,8 @@ function AdminApp() {
           path="/admin/teams/:id"
           element={<TeamDetail user={user} catalog={catalog} />}
         />
-        {user.role !== "DELEGATE" && (
-          <Route
-            path="/admin/reviews"
-            element={<Teams user={user} catalog={catalog} review />}
-          />
-        )}
+        <Route path="/admin/reviews" element={<Navigate to="/admin/teams" replace />} />
+        {user.role !== "DELEGATE" && <Route path="/admin/reports" element={<Reports catalog={catalog}/>} />}
         {user.role === "ADMIN" && (
           <Route
             path="/admin/users"
@@ -303,6 +301,8 @@ function AdminApp() {
 }
 function Login({ onLogin }: { onLogin: (u: User) => void }) {
   const [error, setError] = useState("");
+  const [setupAvailable, setSetupAvailable] = useState(false);
+  useEffect(() => { api<{ available: boolean }>("/setup").then(data => setSetupAvailable(data.available)).catch(() => {}); }, []);
   const schema = z.object({
     email: z.email("Ingrese un correo válido."),
     password: z.string().min(1, "Ingrese su contraseña."),
@@ -426,6 +426,7 @@ function Login({ onLogin }: { onLogin: (u: User) => void }) {
             ¿Necesitas una cuenta o recuperar tu acceso? Comunícate con la
             comisión organizadora.
           </p>
+          {setupAvailable && <Link to="/admin/registro" className="mt-4 block text-sm font-semibold text-primary">Crear el primer administrador</Link>}
         </div>
       </div>
     </div>
@@ -444,20 +445,12 @@ function Shell({
     [error, setError] = useState("");
   const navigation = [
     { path: "/admin", label: "Resumen general", icon: LayoutDashboard },
+    ...(user.role !== "DELEGATE" ? [{ path: "/admin/reports", label: "Reportes", icon: FileText }] : []),
     {
       path: "/admin/teams",
       label: user.role === "DELEGATE" ? "Mis equipos" : "Equipos inscritos",
       icon: Users,
     },
-    ...(user.role !== "DELEGATE"
-      ? [
-          {
-            path: "/admin/reviews",
-            label: "Revisión documentaria",
-            icon: ClipboardCheck,
-          },
-        ]
-      : []),
     ...(user.role === "ADMIN"
       ? [
           {
@@ -843,7 +836,7 @@ function TeamTable({ items }: { items: TeamSummary[] }) {
                     <Activity className="size-4" />
                   </div>
                   <div>
-                    <p className="font-semibold">{t.category.name}</p>
+                    <p className="font-semibold">{t.name || t.category.name}</p>{t.name && <p className="mt-1 text-xs text-muted-foreground">{t.category.name}</p>}{(t.cycle || t.shift || t.section) && <p className="mt-1 text-xs text-muted-foreground">{[t.cycle && 'Ciclo ' + t.cycle, t.shift, t.section && 'Sección ' + t.section].filter(Boolean).join(' · ')}</p>}
                     <p className="mt-1 max-w-56 text-[11px] text-muted-foreground">
                       {t.school.name}
                     </p>
@@ -880,16 +873,14 @@ function TeamTable({ items }: { items: TeamSummary[] }) {
 function Teams({
   user,
   catalog,
-  review = false,
 }: {
   user: User;
   catalog: Catalog | null;
-  review?: boolean;
 }) {
   const [data, setData] = useState<Page<TeamSummary> | null>(null),
     [error, setError] = useState(""),
     [page, setPage] = useState(1),
-    [status, setStatus] = useState(review ? "SUBMITTED" : ""),
+    [status, setStatus] = useState(""),
     [school, setSchool] = useState(""),
     [category, setCategory] = useState(""),
     [create, setCreate] = useState(false);
@@ -906,21 +897,16 @@ function Teams({
   return (
     <>
       <PageTitle
-        eyebrow={review ? "COMISIÓN ORGANIZADORA" : "INSCRIPCIONES"}
+        eyebrow="INSCRIPCIONES"
         title={
-          review
-            ? "Revisión documentaria"
-            : user.role === "DELEGATE"
+          user.role === "DELEGATE"
               ? "Mis equipos"
               : "Equipos inscritos"
         }
         description={
-          review
-            ? "Verifica los requisitos y registra el resultado de cada expediente."
-            : "Gestiona las nóminas y el estado de las inscripciones."
+          "Gestiona las nóminas y el estado de las inscripciones."
         }
         action={
-          !review && (
             <Button
               onClick={() => setCreate(true)}
               disabled={!catalog?.tournament}
@@ -928,7 +914,6 @@ function Teams({
               <Plus />
               Nuevo equipo
             </Button>
-          )
         }
       />
       <ErrorMessage message={error} />
@@ -1019,6 +1004,7 @@ function NewTeam({
   close: () => void;
   created: (id: number) => void;
 }) {
+  const [details, setDetails] = useState({ name: '', cycle: '', shift: 'Mañana', section: '' });
   const [category, setCategory] = useState(""),
     [delegate, setDelegate] = useState(""),
     [delegates, setDelegates] = useState<User[]>([]),
@@ -1041,7 +1027,7 @@ function NewTeam({
           try {
             const t = await api<{ id: number }>("/teams", {
               method: "POST",
-              body: JSON.stringify({
+              body: JSON.stringify({ ...details,
                 categoryId: Number(category),
                 ...(delegate ? { delegateId: Number(delegate) } : {}),
               }),
@@ -1054,7 +1040,7 @@ function NewTeam({
           }
         }}
       >
-        <ErrorMessage message={error} />
+        <ErrorMessage message={error} /><div className="form-grid"><label>Nombre del equipo<Input required minLength={2} maxLength={100} value={details.name} onChange={e => setDetails(v => ({...v, name: e.target.value}))}/></label>{([['cycle', 'Ciclo', ['I','II','III','IV','V','VI','VII','VIII','IX','X']], ['section', 'Sección', ['A','B']]] as const).map(([key, label, options]) => <label key={key}>{label}<select required value={details[key]} onChange={e => setDetails(v => ({...v, [key]: e.target.value}))}><option value="">Seleccionar</option>{options.map(option => <option key={option} value={option}>{option}</option>)}</select></label>)}<label>Turno<select value={details.shift} onChange={e => setDetails(v => ({ ...v, shift: e.target.value }))}><option>Mañana</option><option>Tarde</option><option>Noche</option></select></label></div>
         <p className="text-sm text-muted-foreground">
           Se permite un equipo por escuela y categoría. Los deportistas deben
           pertenecer a la escuela del delegado.
@@ -1114,6 +1100,7 @@ function TeamDetail({
   catalog: Catalog | null;
 }) {
   const { id } = useParams();
+  const [documentChecks, setDocumentChecks] = useState<Record<string, boolean>>({});
   const [editing, setEditing] = useState<{
     id: number;
     athlete: Athlete;
@@ -1134,6 +1121,7 @@ function TeamDetail({
     setTeam(null);
     reload().catch((e) => setError(errorText(e)));
   }, [reload]);
+  useEffect(() => { setDocumentChecks(Object.fromEntries(Object.entries(team?.reviews[0]?.checks || {}).filter(([key]) => key.startsWith("document_")))); }, [team?.id, team?.version]);
   const run = async (work: () => Promise<unknown>) => {
     setBusy(true);
     setError("");
@@ -1184,8 +1172,8 @@ function TeamDetail({
       </Link>
       <PageTitle
         eyebrow={`EXPEDIENTE #${String(team.id).padStart(4, "0")}`}
-        title={team.category.name}
-        description={team.school.name}
+        title={team.name || team.category.name}
+        description={[team.school.name, team.category.name, team.cycle && 'Ciclo ' + team.cycle, team.shift, team.section && 'Sección ' + team.section].filter(Boolean).join(' · ')}
         action={
           <div className="flex flex-wrap items-center gap-3">
             <Badge status={team.status} />
@@ -1356,7 +1344,8 @@ function TeamDetail({
           </div>
         </Card>
       )}
-      {tab === "documents" && (
+      {tab === "documents" && user.role !== "DELEGATE" && <ReviewDocuments team={team} values={documentChecks} busy={busy} onChange={(key, value) => setDocumentChecks(v => ({ ...v, [key]: value }))}/> }
+      {tab === "documents" && user.role === "DELEGATE" && (
         <div className="space-y-5">
           <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm leading-relaxed text-blue-900">
             Descarga los formatos, imprímelos y recoge las firmas físicas. Luego
@@ -1416,7 +1405,7 @@ function TeamDetail({
           </DownloadButton>
         </div>
       )}
-      {tab === "review" && <ReviewPanel team={team} busy={busy} run={run} />}
+      {tab === "review" && <ReviewPanel team={team} busy={busy} run={run} documentChecks={documentChecks} />}
       {tab === "history" && (
         <Card className="p-6">
           <h2 className="mb-6 text-base font-bold">Historial del expediente</h2>
@@ -1732,8 +1721,10 @@ function ReviewPanel({
   team,
   busy,
   run,
+  documentChecks,
 }: {
   team: Team;
+  documentChecks: Record<string, boolean>;
   busy: boolean;
   run: (f: () => Promise<unknown>) => Promise<void>;
 }) {
@@ -1745,11 +1736,17 @@ function ReviewPanel({
     setNotes("");
   }, [team.id, team.version]);
   const latest = team.reviews[0];
+  const allDocumentsValidated = team.documents.length > 0 && team.documents.every(d => documentChecks['document_' + d.id]);
+  const reviewChecks = { ...values, ...documentChecks };
+  for (const [kind, key] of [['ROSTER', 'roster'], ['FITNESS', 'fitness'], ['RESPONSIBILITY', 'responsibility']]) {
+    const docs = team.documents.filter(d => d.kind === kind);
+    reviewChecks[key] = docs.length > 0 && docs.every(d => documentChecks['document_' + d.id]);
+  }
   return (
     <Card className="p-6">
       <h2 className="text-lg font-bold">Lista de control documentario</h2>
       <p className="mb-6 mt-2 text-sm leading-relaxed text-muted-foreground">
-        Revisa los adjuntos en la pestaña de documentos. Confirma matrícula y
+        Valida cada adjunto con su check en Documentos y formatos. Los checks se guardan al registrar la decisión. Confirma matrícula y
         escuela por los medios institucionales disponibles. Cada casilla
         representa una verificación de la comisión.
       </p>
@@ -1764,7 +1761,8 @@ function ReviewPanel({
                 <input
                   type="checkbox"
                   className="mt-0.5 size-4 accent-primary"
-                  checked={values[key] || false}
+                  checked={reviewChecks[key] || false}
+                  disabled={busy || ["roster", "fitness", "responsibility"].includes(key)}
                   onChange={(e) =>
                     setValues((v) => ({ ...v, [key]: e.target.checked }))
                   }
@@ -1785,7 +1783,7 @@ function ReviewPanel({
           </label>
           <div className="mt-5 flex flex-wrap gap-3">
             <Button
-              disabled={busy || !Object.keys(checks).every((k) => values[k])}
+              disabled={busy || !allDocumentsValidated || !Object.keys(checks).every((k) => reviewChecks[k])}
               onClick={() => setDecision("APPROVED")}
             >
               <Check />
@@ -1823,9 +1821,9 @@ function ReviewPanel({
                         version: team.version,
                         result: decision,
                         notes,
-                        checks: Object.fromEntries(
-                          Object.keys(checks).map((k) => [k, !!values[k]]),
-                        ),
+                        checks: { ...documentChecks, ...Object.fromEntries(
+                          Object.keys(checks).map((k) => [k, !!reviewChecks[k]]),
+                        ) },
                       }),
                     });
                     setDecision(null);
