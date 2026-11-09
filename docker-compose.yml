@@ -45,7 +45,8 @@ services:
     networks:
       - private
     healthcheck:
-      test: [CMD-SHELL, 'MYSQL_PWD="$$MYSQL_PASSWORD" mysql --connect-timeout=3 --protocol=TCP -h 127.0.0.1 -u "$$MYSQL_USER" "$$MYSQL_DATABASE" -e "SELECT 1" >/dev/null']
+      # Server readiness only. web verifies the real credentials before migrating.
+      test: [CMD, mysqladmin, --connect-timeout=3, --protocol=TCP, -h, 127.0.0.1, ping, --silent]
       interval: 10s
       timeout: 5s
       retries: 20

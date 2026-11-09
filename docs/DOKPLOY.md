@@ -97,6 +97,10 @@ Para actualizar: respaldar, subir los cambios a Git, pulsar Deploy y revisar Log
 
 ## Validación realizada
 
+El healthcheck de MySQL verifica disponibilidad del servidor. Antes de migrar, `web` verifica por separado las credenciales reales, el origen HTTPS, los PDF públicos, React compilado y permisos de escritura. Una contraseña incorrecta se informa en Logs de `web` y no se corrige automáticamente ni elimina datos.
+
+Para una base de despliegue descartable cuyo reinicio haya sido autorizado: guardar primero las variables definitivas y ejecutar en el servidor, desde el repositorio, `sh deploy/reset-empty-mysql.sh --confirm-delete-database NOMBRE_PROYECTO_DOKPLOY`. El script exige que el volumen montado coincida exactamente con el `mysql_data` del proyecto, detiene `web` si está activo, elimina solo ese contenedor/volumen MySQL y conserva adjuntos. Después pulsar Deploy. No se ejecuta en cada despliegue ni desde la aplicación.
+
 Compilación local y 45 pruebas correctas. Se comprobaron rutas SPA, protección de API, salud de MySQL y bloqueo del bootstrap público en producción. **En este equipo no hay Docker instalado: la construcción y arranque de la imagen y la configuración DNS/TLS deben verificarse en Dokploy; no se ha realizado un despliegue remoto.**
 
 Referencias oficiales: [Docker Compose en Dokploy](https://docs.dokploy.com/docs/core/docker-compose), [dominios para Compose](https://docs.dokploy.com/docs/core/docker-compose/domains), [Volume Backups](https://docs.dokploy.com/docs/core/volume-backups).
