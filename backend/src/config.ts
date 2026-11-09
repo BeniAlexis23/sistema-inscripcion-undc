@@ -9,6 +9,7 @@ export const config = {
   port: Number(process.env.PORT || 4000),
   origin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
   production: process.env.NODE_ENV === 'production',
+  frontendDist: path.resolve(backendRoot, '../frontend/dist'),
   storage: path.resolve(backendRoot, process.env.STORAGE_DIR || './storage'),
   publicDocuments: path.resolve(backendRoot, process.env.PUBLIC_DOCUMENTS_DIR || './public-documents'),
   sessionHours: Number(process.env.SESSION_HOURS || 12),

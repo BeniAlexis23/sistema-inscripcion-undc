@@ -11,7 +11,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "admin:create": "tsx src/create-admin.ts",
-    "db:check": "tsx src/check-db.ts"
+    "db:check": "tsx src/check-db.ts",
+    "db:sync": "prisma migrate deploy && prisma generate"
   },
   "dependencies": {
     "@prisma/client": "6.19.0",

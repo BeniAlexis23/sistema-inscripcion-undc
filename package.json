@@ -9,7 +9,8 @@
     "db:migrate": "pnpm --filter @undc/backend run db:migrate",
     "db:seed": "pnpm --filter @undc/backend run db:seed",
     "admin:create": "pnpm --filter @undc/backend run admin:create",
-    "db:check": "pnpm --filter @undc/backend run db:check"
+    "db:check": "pnpm --filter @undc/backend run db:check",
+    "db:sync": "pnpm --filter @undc/backend run db:sync"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

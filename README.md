@@ -1,5 +1,7 @@
 # Inscripciones deportivas UNDC 2026
 
+Despliegue de producción: consultar [la guía de Dokploy](docs/DOKPLOY.md). Incluye Compose, HTTPS, persistencia, alta administrativa por consola y respaldos. El entorno local continúa sin Docker.
+
 Aplicación cliente-servidor para el XVII Aniversario Institucional, con un formulario público precedido por la información del evento y un panel administrativo privado. React, TypeScript, Tailwind CSS y componentes shadcn/ui en `frontend/`; Express, TypeScript, Prisma y MySQL en `backend/`.
 
 ## Requisitos e instalación local (sin Docker)
@@ -29,7 +31,19 @@ pnpm db:migrate
 pnpm db:seed
 ```
 
-Si ya instaló la versión anterior, ejecute `pnpm db:generate` y `pnpm db:migrate` antes de reiniciar: la segunda migración incorpora las inscripciones públicas sin cuentas y conserva los registros existentes.
+### Actualizar después de trabajar en otro equipo
+
+Detenga el backend antes de sincronizar (Ctrl+C en la terminal de `pnpm dev`). En Windows, un backend abierto mantiene bloqueado el motor de Prisma y puede impedir regenerar el cliente.
+
+```powershell
+git pull
+pnpm install --frozen-lockfile
+pnpm db:sync
+pnpm db:check
+pnpm dev
+```
+
+`pnpm db:sync` aplica las migraciones pendientes y regenera Prisma. Conserva los registros existentes; no ejecuta resets ni borra la base. La migración de nombre, ciclo, turno y sección debe aplicarse en cada computadora que use una base local distinta. No copie `node_modules` entre equipos: el cliente Prisma se genera localmente. Mantenga las credenciales propias de cada equipo en `backend/.env`.
 
 La carga inicial es idempotente y no sobrescribe fechas ya configuradas. Incluye las seis escuelas, siete categorías y el semestre 2026-II. Apertura propuesta: 6 de noviembre de 2026; cierre propuesto: 19 de noviembre de 2026, 23:59, hora de Lima. **Estas fechas no están fijadas por los PDF y la comisión debe confirmarlas en Configuración.**
 
@@ -61,7 +75,7 @@ Frontend: http://localhost:5173. API: http://localhost:4000/api/v1. Vite redirig
 pnpm db:check
 ```
 
-Comprueba la conexión y los catálogos sin imprimir la contraseña. El backend carga siempre `backend/.env`, incluso cuando se ejecuta desde otra carpeta. Si aparece P1000, revise las credenciales de DATABASE_URL: la contraseña de ejemplo no es una cuenta real. P1001 indica que debe iniciar MySQL o revisar host/puerto; si faltan tablas, ejecute `pnpm db:migrate` y `pnpm db:seed`. Para iniciar únicamente la API use `pnpm --filter @undc/backend dev`.
+Comprueba conexión, migraciones, campos del equipo, cliente Prisma y catálogos sin imprimir la contraseña. Detecta también actualizaciones incompletas aunque MySQL esté conectado. El backend carga siempre `backend/.env`, incluso cuando se ejecuta desde otra carpeta. Si aparece P1000, revise las credenciales de DATABASE_URL: la contraseña de ejemplo no es una cuenta real. P1001 indica que debe iniciar MySQL o revisar host/puerto; si hay actualizaciones pendientes, detenga el backend y ejecute `pnpm db:sync`. Para iniciar únicamente la API use `pnpm --filter @undc/backend dev`.
 
 ## Uso
 
@@ -75,6 +89,8 @@ Cada nuevo equipo registra nombre, ciclo, turno (Mañana, Tarde o Noche) y secci
 6. Si hay observaciones, la comisión contacta al delegado por el correo o celular consignados y registra las subsanaciones desde el panel. No se envían correos automáticos ni se publican los datos de participantes.
 
 La constancia pública acredita recepción, no aprobación. Su código no permite descargar documentos ni consultar datos personales. Las inscripciones públicas no generan usuarios; los equipos previamente asociados a delegados conservan su funcionamiento interno.
+
+En Equipos inscritos → Deportistas, la columna Acciones muestra botones Editar y Eliminar. Administradores y comisión pueden corregir o retirar deportistas de expedientes en revisión; el cambio devuelve el expediente a observado, invalida las fichas/declaraciones afectadas y queda auditado. Eliminar requiere confirmación y retira al deportista de ese equipo, conservando sus otras participaciones. Los aprobados deben reabrirse primero. Los delegados siguen sujetos al estado editable y al periodo habilitado; la comisión puede gestionar correcciones y documentos de subsanación fuera de plazo.
 
 El formulario conserva los datos durante la visita: mantenga abierta la página mientras prepara las firmas. La inscripción y los cupos se registran al enviar; no hay un borrador público persistente. Al retroceder desde documentos para modificar la nómina, se descartan los adjuntos seleccionados para exigir documentos actualizados.
 
@@ -124,6 +140,10 @@ El envío público es atómico: guarda equipo, contacto del delegado, nómina, d
 La API bloquea la fila del torneo con `SELECT ... FOR UPDATE` dentro de cada transacción de nómina, revisión o configuración. Esto serializa altas incluso cuando el estudiante todavía no existe y evita la tercera disciplina por carreras. Las identidades tienen restricciones únicas por DNI y código. La aprobación comprueba nuevamente los requisitos y usa la versión del expediente para rechazar revisiones obsoletas.
 
 Los archivos se almacenan fuera del contenido público, en `backend/storage`, bajo nombres aleatorios; se valida tamaño y firma de tipo de archivo. Las descargas comprueban el acceso al equipo. El proxy inverso nunca debe exponer esa carpeta. Los adjuntos reemplazados o retirados se eliminan después de confirmar la transacción. Si se interrumpe el proceso durante una carga puede quedar un archivo huérfano; debe compararse el almacenamiento contra Document antes de eliminarlo. No elimine archivos activos por antigüedad.
+
+Al eliminar un deportista de un equipo se borran su participación, sus documentos individuales y su seguimiento asociado en ese equipo. Se invalida la ficha firmada de la nómina. Se conservan las revisiones generales y el historial de los demás deportistas. Si tiene otras participaciones, estas y su identidad se conservan; al retirar la última participación también se borra su ficha personal. La eliminación no genera una nueva entrada de seguimiento del deportista. Si la nómina queda vacía, el expediente vuelve a borrador.
+
+El formulario público permite reutilizar un expediente público en borrador que haya quedado sin deportistas, documentos ni revisiones. Recibe una nueva constancia y conserva un único equipo por escuela y categoría. Los equipos con nómina, decisiones de la comisión o delegado con cuenta requieren intervención administrativa; el formulario informa del conflicto sin sobrescribirlos.
 
 ## Verificación
 

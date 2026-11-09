@@ -1,0 +1,16 @@
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.codex
+.agents
+.local
+tmp
+docs
+output
+**/output
+backend/storage
+coverage
+**/*.log

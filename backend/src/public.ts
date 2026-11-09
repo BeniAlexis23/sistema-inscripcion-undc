@@ -99,11 +99,18 @@ publicRouter.post('/registrations', publicLimit, async (_req, _res, next) => { a
       const category = await tx.category.findUnique({ where: { id: data.categoryId } });
       assert(school && category, 'Seleccione una escuela y categoría válidas.');
       checkRoster(category.discipline, data.athletes.map(a => a.sex));
-      const team = await tx.team.create({ data: {
+      const existing = await tx.team.findUnique({ where: { tournamentId_schoolId_categoryId: { tournamentId: tournament.id, schoolId: school.id, categoryId: category.id } }, include: { _count: { select: { participations: true, documents: true, reviews: true } } } });
+      // Only an empty public draft can be reused. Never overwrite an active roster,
+      // a delegate-owned draft, or an expediente with commission decisions.
+      assert(!existing || (existing.status === 'DRAFT' && existing.delegateId === null && existing.receiptCode !== null && existing._count.participations === 0 && existing._count.documents === 0 && existing._count.reviews === 0), 'Ya existe un equipo de esta escuela en esta categoría. Contacte a la comisión para corregir su inscripción.', 409);
+      const teamData = {
         tournamentId: tournament.id, schoolId: school.id, categoryId: category.id, status: 'SUBMITTED', receiptCode,
         name: data.name, cycle: data.cycle, shift: data.shift, section: data.section,
         delegateName: data.delegate.name, delegateDni: data.delegate.dni, delegatePhone: data.delegate.phone, delegateEmail: data.delegate.email,
-      } });
+      } as const;
+      const team = existing
+        ? await tx.team.update({ where: { id: existing.id }, data: { ...teamData, version: { increment: 1 }, createdAt: new Date() } })
+        : await tx.team.create({ data: teamData });
       const ids: number[] = [];
       for (const a of data.athletes) {
         checkCategory(category.gender, a.sex);

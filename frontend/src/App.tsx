@@ -27,6 +27,7 @@ import {
   LogOut,
   Menu,
   Plus,
+  Pencil,
   Search,
   Settings2,
   ShieldCheck,
@@ -1153,7 +1154,12 @@ function TeamDetail({
     (new Date() >= new Date(team.tournament.opensAt) &&
       new Date() <= new Date(team.tournament.closesAt)) ||
     (team.status === "OBSERVED" && team.tournament.correctionsEnabled);
-  const canEdit = editable && windowOpen;
+  const staff = user.role !== "DELEGATE";
+  const canEdit = editable && (staff || windowOpen);
+  const canManageRoster = staff ? team.status !== "APPROVED" : canEdit;
+  const rosterActionHint = team.status === "APPROVED"
+    ? "Reabre el expediente aprobado para modificar la nómina."
+    : "El expediente debe estar editable y dentro del periodo habilitado.";
   const getPdf = (kind: string, participationId?: number) =>
     run(() =>
       download(
@@ -1198,11 +1204,11 @@ function TeamDetail({
             El expediente requiere subsanación
           </h2>
           <p className="mt-2 whitespace-pre-wrap text-sm text-amber-900">
-            {team.reviews[0]?.notes}
+            {team.reviews[0]?.notes || "La nómina cambió. Adjunte los documentos actualizados y reenvíe el expediente."}
           </p>
         </div>
       )}
-      {editable && !windowOpen && (
+      {editable && !windowOpen && !staff && (
         <div className="my-4 rounded-lg border bg-amber-50 p-4 text-sm">
           El periodo de inscripción está cerrado. La comisión puede habilitar
           subsanaciones para expedientes observados.
@@ -1305,27 +1311,28 @@ function TeamDetail({
                       <td>{p.athlete.sex === "FEMALE" ? "Dama" : "Varón"}</td>
                       <td>{p.athlete.phone}</td>
                       <td>
-                        {canEdit && (
-                          <div className="flex gap-1">
+                          <div className="flex gap-2">
                             <Button
-                              variant="outline"
                               size="sm"
-                              disabled={busy}
+                              disabled={busy || !canManageRoster}
+                              title={!canManageRoster ? rosterActionHint : "Editar deportista"}
                               onClick={() => setEditing(p)}
                             >
+                              <Pencil />
                               Editar
                             </Button>
                             <Button
-                              variant="ghost"
-                              size="icon"
-                              disabled={busy}
+                              variant="outline"
+                              size="sm"
+                              className="border-primary/30 text-primary hover:bg-blue-50"
+                              disabled={busy || !canManageRoster}
+                              title={!canManageRoster ? rosterActionHint : "Eliminar deportista del equipo"}
                               onClick={() => setRemove(p.id)}
-                              aria-label={`Retirar a ${p.athlete.firstName}`}
                             >
-                              <Trash2 className="text-red-700" />
+                              <Trash2 />
+                              Eliminar
                             </Button>
                           </div>
-                        )}
                       </td>
                     </tr>
                   ))}
@@ -1341,11 +1348,13 @@ function TeamDetail({
             La identidad se contrasta por DNI y código universitario. Si hay
             discrepancias, solicita su revisión a la comisión antes de
             continuar.
+            {staff && team.status === "SUBMITTED" && <p className="mt-2 text-primary">Editar o eliminar un deportista devolverá el expediente a observado. Los documentos afectados deberán firmarse y adjuntarse nuevamente.</p>}
+            {team.status === "APPROVED" && <p className="mt-2 text-primary">Reabre el expediente para habilitar la edición o eliminación de deportistas.</p>}
           </div>
         </Card>
       )}
       {tab === "documents" && user.role !== "DELEGATE" && <ReviewDocuments team={team} values={documentChecks} busy={busy} onChange={(key, value) => setDocumentChecks(v => ({ ...v, [key]: value }))}/> }
-      {tab === "documents" && user.role === "DELEGATE" && (
+      {tab === "documents" && (user.role === "DELEGATE" || canEdit) && (
         <div className="space-y-5">
           <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm leading-relaxed text-blue-900">
             Descarga los formatos, imprímelos y recoge las firmas físicas. Luego
@@ -1503,11 +1512,16 @@ function TeamDetail({
         </Modal>
       )}
       {remove && (
-        <Modal title="Retirar deportista" close={() => setRemove(null)}>
+        <Modal title="Eliminar deportista del equipo" close={() => !busy && setRemove(null)}>
+          <ErrorMessage message={error} />
+          <p className="mb-3 mt-3 text-sm font-semibold">
+            {team.participations.find(p => p.id === remove)?.athlete.lastName}, {team.participations.find(p => p.id === remove)?.athlete.firstName}
+          </p>
           <p className="mb-5 text-sm text-muted-foreground">
             Se liberará su cupo en esta disciplina y se retirarán sus documentos
-            del equipo. La ficha firmada de la nómina quedará invalidada y
-            deberá adjuntarse nuevamente.
+            y su seguimiento de este equipo de forma definitiva. Si no tiene
+            otras participaciones, también se eliminará su ficha personal. La
+            ficha firmada de la nómina quedará invalidada y deberá adjuntarse nuevamente.
           </p>
           <Button
             variant="destructive"
@@ -1521,7 +1535,7 @@ function TeamDetail({
               })
             }
           >
-            Retirar deportista
+            Confirmar eliminación
           </Button>
         </Modal>
       )}
@@ -1605,8 +1619,8 @@ function AthleteForm({
         <p className="text-xs leading-relaxed text-muted-foreground">
           El estudiante representa a la escuela del equipo. Corregir su
           identidad invalida las fichas y declaraciones de sus equipos: deberán
-          volver a firmarse y adjuntarse. Todos esos expedientes deben estar
-          editables.
+          volver a firmarse y adjuntarse. Los expedientes aprobados deben
+          reabrirse primero; los que estén en revisión pasarán a observado al guardar.
         </p>
         <Button disabled={isSubmitting}>
           {isSubmitting

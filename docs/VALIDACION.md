@@ -55,3 +55,21 @@ La verificación emplea identidades y documentos ficticios: no demuestra matríc
 - Los cuatro ejemplos habituales se generaron en una página A4 cada uno y se revisaron visualmente tras renderizarlos. Ejemplos ficticios en `output/pdf/`.
 - Probados nombres extensos: membrete y encabezados repetidos, conservación de los 12 códigos y la declaración del delegado, y ausencia de páginas vacías producidas por el pie.
 - Compilación del backend y 21 pruebas aprobadas, incluidas cinco nuevas comprobaciones de membrete, salida PDF y paginación.
+
+## Actualización entre equipos - 9 de noviembre de 2026
+
+- Causa del bloqueo: migración `202611060004_team_details` pendiente y cliente Prisma local anterior al modelo con nombre, ciclo, turno y sección. La conexión MySQL funcionaba, pero la compilación y el guardado usaban esquemas distintos.
+- Migración aditiva aplicada en la base principal y la base de pruebas; cliente regenerado tras detener brevemente el backend para liberar el motor DLL de Windows. Backend principal reiniciado en el puerto 4000.
+- `pnpm db:check` ahora revisa migraciones, cliente generado y columnas del equipo, además de conexión y catálogos. Nuevo comando `pnpm db:sync` y procedimiento de actualización documentado en README.
+- 38 pruebas aprobadas y compilación completa correcta. La prueba de integración comprueba explícitamente la persistencia de los cuatro datos nuevos.
+- Navegador contra API aislada en el puerto 4011: vista previa de ficha, envío con tres documentos, registro en MySQL, descarga de constancia y consulta desde Equipos inscritos. Los registros ficticios se eliminan al terminar; no se insertaron en la base principal.
+- Revisado el bloqueo de configuración inicial: la búsqueda previa del torneo se movió fuera de la transacción para que la comprobación de administradores ocurra después de adquirir el bloqueo y no use una instantánea anterior.
+
+## Acciones de deportistas en Equipos inscritos
+
+- Botones con iconos y texto Editar/Eliminar visibles en la columna Acciones. Administradores y comisión pueden operar sobre expedientes en revisión; los aprobados muestran las acciones deshabilitadas hasta reabrirlos.
+- Las correcciones en revisión cambian el expediente a observado, invalidan documentos afectados y registran revisión y auditoría dentro de la transacción. Las identidades compartidas se comprueban en todos sus equipos y no se permite alterar un aprobado por una vía indirecta.
+- Confirmación obligatoria antes de retirar un deportista; se eliminan su participación, documentos y seguimiento asociado en ese equipo. Se conservan otras participaciones, las revisiones generales y el historial de los demás. Al retirar su última participación se elimina también su identidad.
+- 41 pruebas aprobadas y compilación completa correcta, con cobertura de permisos, plazos, edición, eliminación y protección de aprobados. Se verifica el borrado físico de adjuntos y la conservación de los archivos de otros deportistas.
+- Reenvío público de un equipo vacío: reutiliza el borrador público sin duplicar escuela/categoría, genera nueva constancia y registra nómina y adjuntos. Se comprueba que una inscripción activa o con revisiones no pueda sobrescribirse y que el conflicto indique la escuela/categoría.
+- Navegador contra API aislada: editar un deportista, confirmar la eliminación de otro, comprobar estado observado/auditoría y habilitación de adjuntos para subsanar. Solo se utilizaron registros ficticios en la base de pruebas.

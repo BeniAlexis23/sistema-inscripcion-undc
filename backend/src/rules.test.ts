@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { checkCapacity, checkCategory, checkDisciplines, checkEditable, checkRoster, checkWindow } from './rules.js';
-import { allowTeam } from './services.js';
+import { allowTeam, assertRosterEditable } from './services.js';
 import { detectMime, app } from './app.js';
 import request from 'supertest';
 import { settingsSchema, userSchema } from './validation.js';
@@ -22,6 +22,14 @@ describe('Enlaces públicos de documentos', () => {
   });
 });
 describe('Reglas del torneo', () => {
+  it('permite correcciones a comisión en revisión y exige reabrir los aprobados', () => {
+    const tournament = { opensAt: new Date('2020-01-01'), closesAt: new Date('2020-02-01'), correctionsEnabled: false };
+    expect(() => assertRosterEditable({ role: 'COMMISSION' }, { status: 'SUBMITTED', tournament })).not.toThrow();
+    expect(() => assertRosterEditable({ role: 'ADMIN' }, { status: 'OBSERVED', tournament })).not.toThrow();
+    expect(() => assertRosterEditable({ role: 'ADMIN' }, { status: 'APPROVED', tournament })).toThrow('Reabra');
+    expect(() => assertRosterEditable({ role: 'DELEGATE' }, { status: 'SUBMITTED', tournament })).toThrow();
+    expect(() => assertRosterEditable({ role: 'DELEGATE' }, { status: 'DRAFT', tournament })).toThrow('cerrado');
+  });
   it('impide una tercera disciplina y duplicar una existente', () => {
     expect(() => checkDisciplines(['FUTSAL', 'CHESS'], 'VOLLEYBALL')).toThrow('tercera');
     expect(() => checkDisciplines(['FUTSAL'], 'FUTSAL')).toThrow('ya está');

@@ -3,7 +3,7 @@ import { beforeAll, afterAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import argon2 from 'argon2';
 import { randomInt, randomUUID } from 'node:crypto';
-import { mkdir, rm } from 'node:fs/promises';
+import { access, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -46,8 +46,8 @@ describe.skipIf(!url)('Flujo real MySQL, permisos y concurrencia', () => {
     const category = categories.find(c => c.discipline === discipline && c.gender === gender)!;
     const t = await prisma.team.create({ data: { tournamentId, schoolId: school, categoryId: category.id, delegateId: delegate } }); teamIds.push(t.id); return t;
   }
-  async function add(teamId: number, a = makeAthlete()) {
-    const r = await post(`/teams/${teamId}/athletes`, a); if (r.status === 201) athleteIds.push(r.body.athleteId); return r;
+  async function add(teamId: number, a = makeAthlete(), cookie = delegateCookie) {
+    const r = await post(`/teams/${teamId}/athletes`, a, cookie); if (r.status === 201) athleteIds.push(r.body.athleteId); return r;
   }
   async function attach(teamId: number, kind: string, participationId?: number) {
     let r = request(app).post(`/api/v1/teams/${teamId}/documents`).set(H).set('Cookie', delegateCookie).field('kind', kind);
@@ -101,6 +101,69 @@ describe.skipIf(!url)('Flujo real MySQL, permisos y concurrencia', () => {
     expect((await request(app).delete(`/api/v1/teams/${t.id}/athletes/${p.body.id}`).set(H).set('Cookie', delegateCookie)).status).toBe(204);
     expect(await prisma.participation.count({ where: { athleteId: p.body.athleteId } })).toBe(0);
   });
+  it('comisión edita y elimina en revisión, invalida firmas y bloquea expedientes aprobados', async () => {
+    const t = await makeTeam('BASKETBALL', 'FEMALE'), a = makeAthlete('FEMALE');
+    const participation = await add(t.id, a); expect(participation.status).toBe(201);
+    const second = await makeTeam('VOLLEYBALL', 'FEMALE');
+    const secondParticipation = await add(second.id, a); expect(secondParticipation.status).toBe(201);
+    await attach(second.id, 'ROSTER'); await attach(second.id, 'FITNESS', secondParticipation.body.id); await attach(second.id, 'RESPONSIBILITY', secondParticipation.body.id);
+    expect((await post(`/teams/${second.id}/submit`, {})).status).toBe(204);
+    await attach(t.id, 'ROSTER'); await attach(t.id, 'FITNESS', participation.body.id); await attach(t.id, 'RESPONSIBILITY', participation.body.id);
+    expect((await post(`/teams/${t.id}/submit`, {})).status).toBe(204);
+    const edit = (cookie: string, input: object) => request(app).put(`/api/v1/teams/${t.id}/athletes/${participation.body.id}`).set(H).set('Cookie', cookie).send(input);
+    expect((await edit(delegateCookie, { ...a, firstName: 'Corrección' })).status).toBe(409);
+    expect((await edit(otherCookie, { ...a, firstName: 'Corrección' })).status).toBe(403);
+    expect((await edit(commissionCookie, { ...a, firstName: 'Corrección comisión' })).status).toBe(204);
+    let updated = await prisma.team.findUniqueOrThrow({ where: { id: t.id }, include: { documents: true, reviews: true } });
+    expect(updated.status).toBe('OBSERVED'); expect(updated.documents).toHaveLength(0); expect(updated.reviews[0].result).toBe('OBSERVED');
+    expect((await prisma.athlete.findUniqueOrThrow({ where: { id: participation.body.athleteId } })).firstName).toBe('CORRECCIÓN COMISIÓN');
+    const related = await prisma.team.findUniqueOrThrow({ where: { id: second.id }, include: { documents: true } }); expect(related.status).toBe('OBSERVED'); expect(related.documents).toHaveLength(0);
+    await prisma.team.update({ where: { id: second.id }, data: { status: 'APPROVED' } });
+    expect((await edit(commissionCookie, { ...a, firstName: 'Cambio no permitido' })).status).toBe(409);
+    expect((await prisma.athlete.findUniqueOrThrow({ where: { id: participation.body.athleteId } })).firstName).toBe('CORRECCIÓN COMISIÓN');
+    await prisma.team.update({ where: { id: second.id }, data: { status: 'OBSERVED' } });
+    await prisma.team.update({ where: { id: t.id }, data: { status: 'APPROVED' } });
+    expect((await edit(commissionCookie, { ...a, firstName: 'No permitido' })).status).toBe(409);
+    expect((await request(app).delete(`/api/v1/teams/${t.id}/athletes/${participation.body.id}`).set(H).set('Cookie', commissionCookie)).status).toBe(409);
+    await prisma.team.update({ where: { id: t.id }, data: { status: 'SUBMITTED' } });
+    expect((await request(app).delete(`/api/v1/teams/${t.id}/athletes/${participation.body.id}`).set(H).set('Cookie', commissionCookie)).status).toBe(204);
+    expect(await prisma.participation.count({ where: { teamId: t.id } })).toBe(0);
+    updated = await prisma.team.findUniqueOrThrow({ where: { id: t.id }, include: { documents: true, reviews: true } }); expect(updated.status).toBe('DRAFT');
+    expect(await prisma.audit.count({ where: { teamId: t.id, action: 'ATHLETE_REMOVED' } })).toBe(0);
+    expect(updated.reviews).toHaveLength(0);
+    expect(await prisma.athlete.count({ where: { id: participation.body.athleteId } })).toBe(1);
+    expect(await prisma.audit.count({ where: { teamId: second.id, action: 'ATHLETE_UPDATED' } })).toBe(1);
+  });
+  it('borra solo el seguimiento del deportista retirado y elimina su identidad al liberar su última participación', async () => {
+    const t = await makeTeam('VOLLEYBALL', 'FEMALE', otherSchoolId, userIds[1]);
+    const second = await makeTeam('BASKETBALL', 'FEMALE', otherSchoolId, userIds[1]);
+    const a = makeAthlete('FEMALE');
+    const target = await add(t.id, a, otherCookie), retained = await add(t.id, makeAthlete('FEMALE'), otherCookie);
+    const shared = await add(second.id, a, otherCookie);
+    expect([target.status, retained.status, shared.status]).toEqual([201, 201, 201]);
+    const upload = async (participationId: number) => request(app).post(`/api/v1/teams/${t.id}/documents`).set(H).set('Cookie', otherCookie).field('kind', 'FITNESS').field('participationId', String(participationId)).attach('file', Buffer.from('%PDF-1.4\n%%EOF'), { filename: 'firmado.pdf', contentType: 'application/pdf' });
+    const deletedDoc = await upload(target.body.id), keptDoc = await upload(retained.body.id);
+    expect([deletedDoc.status, keptDoc.status]).toEqual([201, 201]);
+    const deletedFile = await prisma.document.findUniqueOrThrow({ where: { id: deletedDoc.body.id } });
+    const keptFile = await prisma.document.findUniqueOrThrow({ where: { id: keptDoc.body.id } });
+    const review = await prisma.review.create({ data: { teamId: t.id, reviewerId: userIds[2], result: 'OBSERVED', notes: 'Revisión general del equipo', checks: { [`document_${deletedDoc.body.id}`]: true, [`document_${keptDoc.body.id}`]: true, school: true } } });
+    const remove = (teamId: number, id: number) => request(app).delete(`/api/v1/teams/${teamId}/athletes/${id}`).set(H).set('Cookie', commissionCookie);
+    expect((await remove(t.id, target.body.id)).status).toBe(204);
+    const history = await prisma.audit.findMany({ where: { teamId: t.id } });
+    expect(history.some(row => JSON.stringify(row.details).includes(`"athleteId":${target.body.athleteId}`))).toBe(false);
+    expect(history.some(row => row.action === 'ATHLETE_ADDED')).toBe(true);
+    expect(await prisma.document.count({ where: { id: deletedDoc.body.id } })).toBe(0);
+    expect(await prisma.document.count({ where: { id: keptDoc.body.id } })).toBe(1);
+    await expect(access(path.join(config.storage, deletedFile.storageName))).rejects.toThrow();
+    await expect(access(path.join(config.storage, keptFile.storageName))).resolves.toBeUndefined();
+    expect((await prisma.review.findUniqueOrThrow({ where: { id: review.id } })).checks).toEqual({ [`document_${keptDoc.body.id}`]: true, school: true });
+    expect(await prisma.participation.count({ where: { id: retained.body.id } })).toBe(1);
+    expect(await prisma.athlete.count({ where: { id: target.body.athleteId } })).toBe(1);
+    expect(await prisma.audit.count({ where: { teamId: second.id, action: 'ATHLETE_ADDED' } })).toBe(1);
+    expect((await remove(second.id, shared.body.id)).status).toBe(204);
+    expect(await prisma.athlete.count({ where: { id: target.body.athleteId } })).toBe(0);
+    expect(await prisma.audit.count({ where: { teamId: second.id } })).toBe(0);
+  });
   const publicBody = (category: string, school = schoolId, athlete = makeAthlete()) => ({ name: "Equipo de prueba", cycle: "VI", shift: "Mañana", section: "A", schoolId: school, categoryId: categories.find(c => c.discipline === category && c.gender === 'MALE')!.id, delegate: { name: 'Delegado público de prueba', dni: dni(), phone: '999999999', email: 'delegado@test.invalid' }, athletes: [athlete], acceptedBases: true });
   async function sendPublic(data: ReturnType<typeof publicBody>, withFiles = true) {
     let r = request(app).post('/api/v1/public/registrations').set(H).field('data', JSON.stringify(data));
@@ -138,12 +201,30 @@ describe.skipIf(!url)('Flujo real MySQL, permisos y concurrencia', () => {
     const template = await request(app).post('/api/v1/public/formats/fitness?index=0').set(H).send(data); expect(template.status).toBe(200);
     const response = await sendPublic(data); expect(response.status).toBe(201); expect(response.body.receiptCode).toMatch(/^[a-f0-9-]{36}$/);
     const team = await prisma.team.findUniqueOrThrow({ where: { receiptCode: response.body.receiptCode }, include: { documents: true } });
+    expect({ name: team.name, cycle: team.cycle, shift: team.shift, section: team.section }).toEqual({ name: data.name, cycle: data.cycle, shift: data.shift, section: data.section });
     expect(team.delegateId).toBeNull(); expect(team.status).toBe('SUBMITTED'); expect(team.documents).toHaveLength(3);
     expect(await prisma.user.count({ where: { email: data.delegate.email } })).toBe(0);
     expect((await request(app).get(`/api/v1/documents/${team.documents[0].id}`)).status).toBe(401);
     const detail = await request(app).get(`/api/v1/teams/${team.id}`).set('Cookie', commissionCookie); expect(detail.status).toBe(200); expect(detail.body.delegate.name).toBe(data.delegate.name);
     const checks = Object.fromEntries(['roster', 'capacity', 'fitness', 'responsibility', 'enrollment', 'school', 'disciplines', 'identity'].map(k => [k, true]));
     expect((await post(`/teams/${team.id}/reviews`, { version: team.version, result: 'APPROVED', notes: '', checks }, commissionCookie)).status).toBe(204);
+    expect((await sendPublic(data)).status).toBe(409);
+    const duplicate = await sendPublic(data);
+    expect(duplicate.body.message).toContain('Ya existe un equipo de esta escuela en esta categoría');
+    await prisma.team.update({ where: { id: team.id }, data: { status: 'DRAFT' } });
+    const participation = await prisma.participation.findFirstOrThrow({ where: { teamId: team.id } });
+    expect((await request(app).delete(`/api/v1/teams/${team.id}/athletes/${participation.id}`).set(H).set('Cookie', commissionCookie)).status).toBe(204);
+    // Real commission decisions cannot be overwritten by an anonymous submission.
+    expect((await sendPublic(data)).status).toBe(409);
+    await prisma.review.deleteMany({ where: { teamId: team.id } });
+    const replacement = await sendPublic(data);
+    expect(replacement.status).toBe(201);
+    const replaced = await prisma.team.findUniqueOrThrow({ where: { receiptCode: replacement.body.receiptCode }, include: { participations: true, documents: true } });
+    expect(replaced.id).toBe(team.id);
+    expect(replaced.status).toBe('SUBMITTED');
+    expect(replaced.participations).toHaveLength(1);
+    expect(replaced.documents).toHaveLength(3);
+    expect(await prisma.team.count({ where: { tournamentId: team.tournamentId, schoolId: team.schoolId, categoryId: team.categoryId } })).toBe(1);
     expect((await sendPublic(data)).status).toBe(409);
   });
   it('mantiene el límite de dos disciplinas ante envíos públicos simultáneos', async () => {

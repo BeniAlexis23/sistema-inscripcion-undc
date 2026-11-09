@@ -14,7 +14,7 @@ import { config, prisma } from './config.js';
 import { authenticate, cookieOptions, createSession, currentUser, hashToken, publicUser, roles } from './auth.js';
 import { assert, CHECK_KEYS, checkEditable, checkWindow, HttpError } from './rules.js';
 import { reviewSchema, settingsSchema, userSchema, teamDetailsShape } from './validation.js';
-import { addAthlete, editAthlete, audit, changeStatus, getTeam, validateSubmission, withTeam } from './services.js';
+import { addAthlete, editAthlete, removeAthlete, audit, changeStatus, getTeam, validateSubmission, withTeam } from './services.js';
 import { makePdf } from './pdf.js';
 import { publicRouter } from './public.js';
 import { setupRouter } from './setup.js';
@@ -25,6 +25,8 @@ export { detectMime } from './uploads.js';
 
 export const app = express();
 app.disable('x-powered-by');
+// Production is reachable only through Dokploy's Traefik proxy (one hop).
+if (config.production) app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({ origin: config.origin, credentials: true }));
 app.use(express.json({ limit: '100kb' }), cookieParser());
@@ -46,7 +48,10 @@ const paging = (query: Record<string, unknown>) => ({
   page: z.coerce.number().int().min(1).max(100000).default(1).parse(query.page),
   pageSize: z.coerce.number().int().min(1).max(100).default(20).parse(query.pageSize),
 });
-api.get('/health', (_req, res) => { res.json({ status: 'ok' }); });
+api.get('/health', async (_req, res) => {
+  try { await prisma.$queryRaw`SELECT 1`; res.set('Cache-Control', 'no-store').json({ status: 'ok' }); }
+  catch { res.status(503).json({ status: 'unavailable' }); }
+});
 api.post('/sessions', rateLimit({ windowMs: 15 * 60000, limit: 20, standardHeaders: true, legacyHeaders: false, message: { message: 'Demasiados intentos. Vuelva a intentarlo en 15 minutos.' } }), async (req, res) => {
   const input = z.object({ email: z.email().transform(s => s.toLowerCase()), password: z.string().max(128) }).parse(req.body);
   const user = await prisma.user.findUnique({ where: { email: input.email } });
@@ -148,16 +153,7 @@ api.put('/teams/:id/athletes/:participationId', async (req, res) => {
   await editAthlete(idOf(req.params.id), idOf(req.params.participationId), currentUser(req), req.body); res.sendStatus(204);
 });
 api.delete('/teams/:id/athletes/:participationId', async (req, res) => {
-  const id = idOf(req.params.id), participationId = idOf(req.params.participationId), user = currentUser(req);
-  const obsolete = await withTeam(id, user, async (tx, team) => {
-    const p = team.participations.find(p => p.id === participationId); assert(p, 'Deportista no encontrado.', 404);
-    const docs = await tx.document.findMany({ where: { OR: [{ participationId }, { teamId: id, kind: 'ROSTER' }] } });
-    await tx.document.deleteMany({ where: { id: { in: docs.map(d => d.id) } } });
-    await tx.participation.delete({ where: { id: participationId } });
-    await tx.team.update({ where: { id }, data: { version: { increment: 1 } } });
-    await audit(tx, user, 'ATHLETE_REMOVED', id, { athleteId: p.athleteId }); return docs;
-  }, true);
-  await Promise.all(obsolete.map(d => unlink(path.join(config.storage, d.storageName)).catch(() => {})));
+  await removeAthlete(idOf(req.params.id), idOf(req.params.participationId), currentUser(req));
   res.sendStatus(204);
 });
 api.post('/teams/:id/submit', async (req, res) => {
@@ -230,6 +226,13 @@ api.get('/teams/:id/formats/:kind', async (req, res) => {
   res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="undc-${team.id}-${kind}.pdf"`, 'Cache-Control': 'no-store' });
   doc.pipe(res); doc.end();
 });
+if (config.production) {
+  app.use(express.static(config.frontendDist, { index: false, maxAge: '1h' }));
+  app.get('/{*path}', (req, res, next) => {
+    if (req.path === '/api' || req.path.startsWith('/api/') || path.extname(req.path)) return next();
+    res.set('Cache-Control', 'no-store').sendFile(path.join(config.frontendDist, 'index.html'));
+  });
+}
 app.use((_req, _res, next) => next(new HttpError(404, 'Ruta no encontrada.')));
 const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   if (res.headersSent) return res.end();
@@ -237,6 +240,10 @@ const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   if (error instanceof HttpError) return res.status(error.status).json({ message: error.message });
   if (error instanceof multer.MulterError) return res.status(422).json({ message: error.code === 'LIMIT_FILE_SIZE' ? 'El archivo supera el máximo de 10 MB.' : 'La carga del archivo no es válida.' });
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (['P2021', 'P2022'].includes(error.code)) {
+      console.error('Esquema MySQL desactualizado. Detenga el backend y ejecute pnpm db:sync.');
+      return res.status(503).json({ message: 'El sistema necesita una actualización antes de recibir inscripciones. Contacte a la comisión organizadora.' });
+    }
     if (error.code === 'P2002') return res.status(409).json({ message: 'Ya existe un registro con esos datos (equipo, DNI, código o correo).' });
     if (['P2025', 'P2003'].includes(error.code)) return res.status(422).json({ message: 'El registro relacionado no existe o no es válido.' });
     if (error.code === 'P2034') return res.status(409).json({ message: 'Otra operación modificó los datos. Vuelva a intentarlo.' });
