@@ -22,14 +22,14 @@ function where(input: unknown): Prisma.TeamWhereInput {
 }
 reportsRouter.get('/approved', async (req, res) => {
   const items = await prisma.team.findMany({ where: where(req.query), select: {
-    id: true, name: true, cycle: true, shift: true, section: true, school: { select: { name: true } }, category: { select: { name: true, discipline: true } },
+    id: true, school: { select: { name: true } }, category: { select: { name: true, discipline: true } },
     _count: { select: { documents: true, participations: true } },
   }, orderBy: { id: 'asc' } });
   res.set('Cache-Control', 'no-store').json({ items });
 });
 reportsRouter.get('/approved/pdf', rateLimit({ windowMs: 60000, limit: 10, standardHeaders: true, legacyHeaders: false }), async (req, res) => {
   const teams = await prisma.team.findMany({ where: where(req.query), select: {
-    id: true, name: true, cycle: true, shift: true, section: true, school: { select: { name: true } }, category: { select: { name: true } },
+    id: true, school: { select: { name: true } }, category: { select: { name: true } },
     documents: { select: { id: true, kind: true, mime: true, size: true, storageName: true }, orderBy: [{ kind: 'asc' }, { participationId: 'asc' }, { id: 'asc' }] },
   }, orderBy: [{ categoryId: 'asc' }, { schoolId: 'asc' }, { id: 'asc' }] });
   const pdf = await mergeApprovedDocuments(teams, name => readFile(path.join(config.storage, name)));

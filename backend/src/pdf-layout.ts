@@ -85,16 +85,14 @@ export function makePdf(team: FullTeam, kind: string, participationId?: number, 
   if (kind === 'roster') {
     paragraph('La presente ficha será presentada por el delegado, acompañada de las declaraciones juradas individuales firmadas por cada deportista inscrito.', 9.2, 5, 1);
     field('Escuela profesional', team.school.name);
-    if (team.name) field('Nombre del equipo', team.name);
-    if (team.cycle || team.shift || team.section) field('Ciclo / turno / sección', [team.cycle, team.shift, team.section].filter(Boolean).join(' / '));
     choiceField('Disciplina / categoría', [['FUTSAL', 'Futsal'], ['VOLLEYBALL', 'Vóleibol'], ['BASKETBALL', 'Básquetbol'], ['CHESS', 'Ajedrez por equipos']].map(([value, label]) => ({ label, checked: team.category.discipline === value })));
     choiceField('Categoría', [['FEMALE', 'Damas'], ['MALE', 'Varones'], ['MIXED', 'Mixto (ajedrez)']].map(([value, label]) => ({ label, checked: team.category.gender === value })));
     field('Delegado/a', team.delegate.name); field('Celular del delegado/a', team.delegate.phone);
-    doc.y += team.name ? 10 : 20; section('RELACIÓN DE DEPORTISTAS INSCRITOS');
+    doc.y += 20; section('RELACIÓN DE DEPORTISTAS INSCRITOS');
     const widths = [22, 198, 78, 92, WIDTH - 390];
     const tableRow = (values: string[], heading = false): void => {
       doc.font(heading ? 'Helvetica-Bold' : 'Helvetica').fontSize(8.3);
-      const h = Math.max(heading ? 26 : team.name ? 22 : 25, ...values.map((v, i) => doc.heightOfString(v, { width: widths[i] - 8 }) + 6));
+      const h = Math.max(heading ? 26 : 25, ...values.map((v, i) => doc.heightOfString(v, { width: widths[i] - 8 }) + 6));
       if (doc.y + h > 735) { doc.addPage(); tableRow(['N°', 'Apellidos y Nombres', 'DNI', 'Código\nUniversitario', 'Firma de\nconformidad'], true); }
       const y = doc.y; let x = LEFT;
       values.forEach((v, i) => {
@@ -110,7 +108,7 @@ export function makePdf(team: FullTeam, kind: string, participationId?: number, 
     doc.y += 3;
     paragraph('Para futsal, vóleibol y básquetbol: máximo 12 deportistas. Para ajedrez: 10 deportistas (5 damas y 5 varones); dejar sin usar los espacios 11 y 12.', 6.4, 7);
     paragraph('DECLARACIÓN DEL DELEGADO: Certifico que la nómina presentada pertenece a la escuela indicada y que cada estudiante ha sido informado de que puede participar en un máximo de dos (02) disciplinas deportivas durante el torneo.', 8.2, 7);
-    ensure(team.name ? 30 : 45); doc.y += team.name ? 13 : 23; body(8.3);
+    ensure(45); doc.y += 23; body(8.3);
     doc.text(`Firma del/de la delegado/a: ____________________    DNI: ${team.delegate.dni}    Fecha: ____ / ____ / 2026`, LEFT, doc.y, { width: WIDTH });
   } else if (kind === 'fitness') {
     const a = p!.athlete;
@@ -138,8 +136,6 @@ export function makePdf(team: FullTeam, kind: string, participationId?: number, 
     paragraph('Se deja constancia de la recepción del expediente de inscripción del equipo indicado a continuación, para su revisión por la comisión organizadora.', 10, 22);
     section('DATOS DE LA RECEPCIÓN');
     field('Código de constancia', team.receiptCode || '', 135);
-    if (team.name) field('Nombre del equipo', team.name, 135);
-    if (team.cycle || team.shift || team.section) field('Ciclo / turno / sección', [team.cycle, team.shift, team.section].filter(Boolean).join(' / '), 135);
     field('Escuela profesional', team.school.name, 135);
     field('Disciplina / categoría', team.category.name, 135);
     field('Fecha de recepción', new Intl.DateTimeFormat('es-PE', { timeZone: 'America/Lima', dateStyle: 'long', timeStyle: 'short' }).format(team.createdAt) + ' (Lima)', 135);

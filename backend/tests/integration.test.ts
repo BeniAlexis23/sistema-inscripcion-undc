@@ -164,7 +164,7 @@ describe.skipIf(!url)('Flujo real MySQL, permisos y concurrencia', () => {
     expect(await prisma.athlete.count({ where: { id: target.body.athleteId } })).toBe(0);
     expect(await prisma.audit.count({ where: { teamId: second.id } })).toBe(0);
   });
-  const publicBody = (category: string, school = schoolId, athlete = makeAthlete()) => ({ name: "Equipo de prueba", cycle: "VI", shift: "Mañana", section: "A", schoolId: school, categoryId: categories.find(c => c.discipline === category && c.gender === 'MALE')!.id, delegate: { name: 'Delegado público de prueba', dni: dni(), phone: '999999999', email: 'delegado@test.invalid' }, athletes: [athlete], acceptedBases: true });
+  const publicBody = (category: string, school = schoolId, athlete = makeAthlete()) => ({ schoolId: school, categoryId: categories.find(c => c.discipline === category && c.gender === 'MALE')!.id, delegate: { name: 'Delegado público de prueba', dni: dni(), phone: '999999999', email: 'delegado@test.invalid' }, athletes: [athlete], acceptedBases: true });
   async function sendPublic(data: ReturnType<typeof publicBody>, withFiles = true) {
     let r = request(app).post('/api/v1/public/registrations').set(H).field('data', JSON.stringify(data));
     if (withFiles) for (const name of ['roster', 'fitness_0', 'responsibility_0']) r = r.attach(name, Buffer.from('%PDF-1.4\n%%EOF'), { filename: 'firmado.pdf', contentType: 'application/pdf' });
@@ -201,7 +201,7 @@ describe.skipIf(!url)('Flujo real MySQL, permisos y concurrencia', () => {
     const template = await request(app).post('/api/v1/public/formats/fitness?index=0').set(H).send(data); expect(template.status).toBe(200);
     const response = await sendPublic(data); expect(response.status).toBe(201); expect(response.body.receiptCode).toMatch(/^[a-f0-9-]{36}$/);
     const team = await prisma.team.findUniqueOrThrow({ where: { receiptCode: response.body.receiptCode }, include: { documents: true } });
-    expect({ name: team.name, cycle: team.cycle, shift: team.shift, section: team.section }).toEqual({ name: data.name, cycle: data.cycle, shift: data.shift, section: data.section });
+    expect({ name: team.name, cycle: team.cycle, shift: team.shift, section: team.section }).toEqual({ name: null, cycle: null, shift: null, section: null });
     expect(team.delegateId).toBeNull(); expect(team.status).toBe('SUBMITTED'); expect(team.documents).toHaveLength(3);
     expect(await prisma.user.count({ where: { email: data.delegate.email } })).toBe(0);
     expect((await request(app).get(`/api/v1/documents/${team.documents[0].id}`)).status).toBe(401);

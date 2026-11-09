@@ -6,15 +6,14 @@ import { mkdir, readFile, unlink } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { config, prisma } from './config.js';
-import { athleteSchema, teamDetailsShape } from './validation.js';
+import { athleteSchema, teamSelectionShape } from './validation.js';
 import { assert, checkCategory, checkDisciplines, checkRoster, checkWindow, normalize } from './rules.js';
 import { detectMime } from './uploads.js';
 import { makePdf } from './pdf.js';
 import type { FullTeam } from './services.js';
 
 export const publicRegistrationSchema = z.object({
-  ...teamDetailsShape,
-  schoolId: z.number().int().positive(), categoryId: z.number().int().positive(),
+  ...teamSelectionShape,
   delegate: z.object({ name: z.string().trim().min(2).max(150), dni: z.string().regex(/^\d{8}$/), phone: z.string().regex(/^\+?[\d ]{7,20}$/), email: z.email().max(191).transform(s => s.toLowerCase()) }),
   athletes: z.array(athleteSchema).min(1, 'Registre al menos un deportista.').max(12),
   acceptedBases: z.literal(true, { error: 'Debe confirmar que conoce y acepta las bases.' }),
@@ -47,7 +46,7 @@ publicRouter.get('/receipts/:code', formatLimit, async (req, res) => {
   const receiptCode = z.uuid().parse(req.params.code);
   // Only receipt metadata is queried: never expose contacts, rosters or attachments.
   const receipt = await prisma.team.findUnique({ where: { receiptCode }, select: {
-    name: true, cycle: true, shift: true, section: true, receiptCode: true, createdAt: true, school: { select: { name: true } }, category: { select: { name: true } },
+    receiptCode: true, createdAt: true, school: { select: { name: true } }, category: { select: { name: true } },
   } });
   assert(receipt, 'Constancia no encontrada.', 404);
   const doc = makePdf({ ...receipt, participations: [] } as unknown as FullTeam, 'receipt');
@@ -65,7 +64,6 @@ publicRouter.post('/formats/:kind', formatLimit, async (req, res) => {
   if (kind !== 'roster') assert(index < data.athletes.length, 'Deportista no encontrado.');
   const team = {
     id: 0, version: 1, school, category, tournament, delegate: { ...data.delegate, id: null },
-    name: data.name, cycle: data.cycle, shift: data.shift, section: data.section,
     participations: data.athletes.map((a, i) => ({ id: i + 1, athleteId: i + 1, teamId: 0, athlete: { ...a, id: i + 1, schoolId: school.id } })),
     reviews: [], documents: [], audits: [],
   } as unknown as FullTeam;
@@ -105,7 +103,7 @@ publicRouter.post('/registrations', publicLimit, async (_req, _res, next) => { a
       assert(!existing || (existing.status === 'DRAFT' && existing.delegateId === null && existing.receiptCode !== null && existing._count.participations === 0 && existing._count.documents === 0 && existing._count.reviews === 0), 'Ya existe un equipo de esta escuela en esta categoría. Contacte a la comisión para corregir su inscripción.', 409);
       const teamData = {
         tournamentId: tournament.id, schoolId: school.id, categoryId: category.id, status: 'SUBMITTED', receiptCode,
-        name: data.name, cycle: data.cycle, shift: data.shift, section: data.section,
+        name: null, cycle: null, shift: null, section: null,
         delegateName: data.delegate.name, delegateDni: data.delegate.dni, delegatePhone: data.delegate.phone, delegateEmail: data.delegate.email,
       } as const;
       const team = existing

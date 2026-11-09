@@ -837,7 +837,7 @@ function TeamTable({ items }: { items: TeamSummary[] }) {
                     <Activity className="size-4" />
                   </div>
                   <div>
-                    <p className="font-semibold">{t.name || t.category.name}</p>{t.name && <p className="mt-1 text-xs text-muted-foreground">{t.category.name}</p>}{(t.cycle || t.shift || t.section) && <p className="mt-1 text-xs text-muted-foreground">{[t.cycle && 'Ciclo ' + t.cycle, t.shift, t.section && 'Sección ' + t.section].filter(Boolean).join(' · ')}</p>}
+                    <p className="font-semibold">{t.category.name}</p>
                     <p className="mt-1 max-w-56 text-[11px] text-muted-foreground">
                       {t.school.name}
                     </p>
@@ -1005,7 +1005,6 @@ function NewTeam({
   close: () => void;
   created: (id: number) => void;
 }) {
-  const [details, setDetails] = useState({ name: '', cycle: '', shift: 'Mañana', section: '' });
   const [category, setCategory] = useState(""),
     [delegate, setDelegate] = useState(""),
     [delegates, setDelegates] = useState<User[]>([]),
@@ -1028,7 +1027,7 @@ function NewTeam({
           try {
             const t = await api<{ id: number }>("/teams", {
               method: "POST",
-              body: JSON.stringify({ ...details,
+              body: JSON.stringify({
                 categoryId: Number(category),
                 ...(delegate ? { delegateId: Number(delegate) } : {}),
               }),
@@ -1041,7 +1040,7 @@ function NewTeam({
           }
         }}
       >
-        <ErrorMessage message={error} /><div className="form-grid"><label>Nombre del equipo<Input required minLength={2} maxLength={100} value={details.name} onChange={e => setDetails(v => ({...v, name: e.target.value}))}/></label>{([['cycle', 'Ciclo', ['I','II','III','IV','V','VI','VII','VIII','IX','X']], ['section', 'Sección', ['A','B']]] as const).map(([key, label, options]) => <label key={key}>{label}<select required value={details[key]} onChange={e => setDetails(v => ({...v, [key]: e.target.value}))}><option value="">Seleccionar</option>{options.map(option => <option key={option} value={option}>{option}</option>)}</select></label>)}<label>Turno<select value={details.shift} onChange={e => setDetails(v => ({ ...v, shift: e.target.value }))}><option>Mañana</option><option>Tarde</option><option>Noche</option></select></label></div>
+        <ErrorMessage message={error} />
         <p className="text-sm text-muted-foreground">
           Se permite un equipo por escuela y categoría. Los deportistas deben
           pertenecer a la escuela del delegado.
@@ -1178,8 +1177,8 @@ function TeamDetail({
       </Link>
       <PageTitle
         eyebrow={`EXPEDIENTE #${String(team.id).padStart(4, "0")}`}
-        title={team.name || team.category.name}
-        description={[team.school.name, team.category.name, team.cycle && 'Ciclo ' + team.cycle, team.shift, team.section && 'Sección ' + team.section].filter(Boolean).join(' · ')}
+        title={team.category.name}
+        description={team.school.name}
         action={
           <div className="flex flex-wrap items-center gap-3">
             <Badge status={team.status} />

@@ -14,7 +14,7 @@ async function finish(doc: PDFKit.PDFDocument) {
   doc.end(); return completed;
 }
 describe('Formatos con membrete oficial', () => {
-  it('mantiene la ficha habitual en una página al incluir los datos del equipo', async () => {
+  it('mantiene la ficha en una página para registros con datos antiguos del equipo', async () => {
     const doc = makePdf({ ...team, name: 'Los Halcones', cycle: 'VI', shift: 'Mañana', section: 'A' }, 'roster');
     expect(doc.bufferedPageRange().count).toBe(1);
     await finish(doc);

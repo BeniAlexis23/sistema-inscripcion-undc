@@ -3,10 +3,9 @@ import { databaseError } from './database-error.js';
 import { Prisma } from '@prisma/client';
 import { readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { teamDetailsShape } from './validation.js';
 try {
   await prisma.$connect();
-  const expected = Object.keys(teamDetailsShape);
+  const expected = ['schoolId', 'categoryId', 'tournamentId'];
   const generatedFields = new Set(Prisma.dmmf.datamodel.models.find(model => model.name === 'Team')?.fields.map(field => field.name));
   const missingClient = expected.filter(field => !generatedFields.has(field));
   if (missingClient.length) throw new Error('El cliente Prisma está desactualizado. Detenga el backend y ejecute pnpm db:sync.');

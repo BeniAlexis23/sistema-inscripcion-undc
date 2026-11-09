@@ -24,8 +24,6 @@ async function cover(team: ReportTeam) {
   doc.font('Helvetica-Bold').fontSize(14).fillColor('#143f5b').text('EXPEDIENTE APROBADO', 57, 160, { align: 'center' });
   doc.moveTo(57, 190).lineTo(538, 190).strokeColor('#4472c4').stroke();
   doc.fontSize(11).text(`Equipo #${team.id}`, 57, 215);
-  if (team.name) doc.moveDown().text(team.name);
-  if (team.cycle || team.shift || team.section) doc.moveDown().text([team.cycle && `Ciclo ${team.cycle}`, team.shift, team.section && `Sección ${team.section}`].filter(Boolean).join(' / '));
   doc.moveDown().text(team.school.name).moveDown().text(team.category.name);
   doc.moveDown(2).fontSize(10).text('DOCUMENTOS FIRMADOS', { underline: true });
   const labels: Record<string, string> = { ROSTER: 'Ficha oficial del equipo', FITNESS: 'Declaración de aptitud física', RESPONSIBILITY: 'Declaración de responsabilidad' };

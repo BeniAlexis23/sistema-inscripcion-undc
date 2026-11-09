@@ -1,10 +1,8 @@
 import { z } from 'zod';
 z.config(z.locales.es());
-export const teamDetailsShape = {
-  name: z.string().trim().min(2, 'Ingrese el nombre del equipo.').max(100),
-  cycle: z.string().trim().pipe(z.enum(['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'], { error: 'Seleccione un ciclo de I a X.' })),
-  shift: z.enum(['Mañana', 'Tarde', 'Noche']),
-  section: z.string().trim().pipe(z.enum(['A', 'B'], { error: 'Seleccione la sección A o B.' })),
+export const teamSelectionShape = {
+  schoolId: z.number().int().positive(),
+  categoryId: z.number().int().positive(),
 };
 const name = z.string().trim().min(2).max(100);
 const dni = z.string().regex(/^\d{8}$/, 'El DNI debe contener ocho dígitos.');
