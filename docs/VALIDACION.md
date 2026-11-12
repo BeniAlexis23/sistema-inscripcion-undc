@@ -1,5 +1,18 @@
 # Verificación de la primera versión
 
+## Módulo de personal — 12/11/2026
+
+- Registro completo en PDF: vista previa automática tras enviar, descarga explícita y recuperación posterior. Acceso público solo mediante clave privada; acceso administrativo restringido a comisión/administración. Pruebas de paginación con diez integrantes y nombres extensos. Total actualizado: 70 pruebas aprobadas y compilación correcta.
+
+- 67 pruebas aprobadas y compilación completa correcta. Se mantienen las pruebas de pregrado.
+- Migración aditiva aplicada en las bases locales principal y de pruebas; no se alteran tablas ni registros de pregrado.
+- Validaciones de máximo diez integrantes, sexo en futsal, combinaciones de vóleibol, DNI/CE, agrupación de dependencias y documentos requeridos.
+- Integración MySQL: recepción completa, ausencia de reserva para incompletos, acceso privado, rechazo a delegados de pregrado, token privado, observación/subsanación, reapertura auditada y cierre de plazo.
+- Identidad simultánea en una categoría y aprobaciones concurrentes sobre el último cupo verificadas; no se excede el aforo.
+- Navegador con API aislada y base exclusiva de pruebas: móvil/escritorio, generación de ficha, carga de cinco adjuntos, recepción, revisión, enlace privado, subsanación y aprobación. Registros ficticios eliminados al finalizar.
+- Cuatro formatos generados sobre las páginas originales y renderizados para inspección visual; membrete, contenido y espacios de firma conservados.
+- Despliegue remoto pendiente de subir cambios y redesplegar en Dokploy. No requiere reiniciar volúmenes ni modificar secretos.
+
 Fecha: 6 de noviembre de 2026. Entorno: Windows, Node.js 24 y MySQL 8.4.3.
 
 - Compilación TypeScript de frontend y backend y compilación Vite completadas.

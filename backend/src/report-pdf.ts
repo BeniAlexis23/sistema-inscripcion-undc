@@ -2,6 +2,7 @@ import { PDFDocument } from 'pdf-lib';
 import PDFKit from 'pdfkit';
 import { fileURLToPath } from 'node:url';
 import { assert } from './rules.js';
+import { pdfDate } from './pdf-date.js';
 
 export interface ReportTeam {
   id: number;
@@ -25,6 +26,7 @@ async function cover(team: ReportTeam) {
   doc.moveTo(57, 190).lineTo(538, 190).strokeColor('#4472c4').stroke();
   doc.fontSize(11).text(`Equipo #${team.id}`, 57, 215);
   doc.moveDown().text(team.school.name).moveDown().text(team.category.name);
+  doc.moveDown().font('Helvetica').fontSize(9).text(`Fecha de generación: ${pdfDate().dateTime}`);
   doc.moveDown(2).fontSize(10).text('DOCUMENTOS FIRMADOS', { underline: true });
   const labels: Record<string, string> = { ROSTER: 'Ficha oficial del equipo', FITNESS: 'Declaración de aptitud física', RESPONSIBILITY: 'Declaración de responsabilidad' };
   for (const kind of ['ROSTER', 'FITNESS', 'RESPONSIBILITY']) {

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import type { FullTeam } from './services.js';
 import { assert } from './rules.js';
 import { fitnessStatements, responsibilityStatements, checkLabels } from './pdf-content.js';
+import { pdfDate } from './pdf-date.js';
 
 const banner = fileURLToPath(new URL('../assets/membrete-deportes-undc.jpg', import.meta.url));
 const BLUE = '#143f5b', INK = '#111111', SHADE = '#e9f0f5', RULE = '#4472c4';
@@ -15,6 +16,7 @@ const titles: Record<string, string> = {
 
 /** Recreates the official form layout using the unmodified banner extracted from the source PDF. */
 export function makePdf(team: FullTeam, kind: string, participationId?: number, disciplines: string[] = []): PDFKit.PDFDocument {
+  const generated = pdfDate();
   assert(titles[kind], 'Formato desconocido.', 404);
   const p = team.participations.find(p => p.id === participationId);
   if (kind === 'fitness' || kind === 'responsibility') assert(p, 'Deportista no encontrado.', 404);
@@ -109,7 +111,7 @@ export function makePdf(team: FullTeam, kind: string, participationId?: number, 
     paragraph('Para futsal, vóleibol y básquetbol: máximo 12 deportistas. Para ajedrez: 10 deportistas (5 damas y 5 varones); dejar sin usar los espacios 11 y 12.', 6.4, 7);
     paragraph('DECLARACIÓN DEL DELEGADO: Certifico que la nómina presentada pertenece a la escuela indicada y que cada estudiante ha sido informado de que puede participar en un máximo de dos (02) disciplinas deportivas durante el torneo.', 8.2, 7);
     ensure(45); doc.y += 23; body(8.3);
-    doc.text(`Firma del/de la delegado/a: ____________________    DNI: ${team.delegate.dni}    Fecha: ____ / ____ / 2026`, LEFT, doc.y, { width: WIDTH });
+    doc.text(`Firma del/de la delegado/a: ____________________    DNI: ${team.delegate.dni}    Fecha: ${generated.short}`, LEFT, doc.y, { width: WIDTH });
   } else if (kind === 'fitness') {
     const a = p!.athlete;
     field('Apellidos y Nombres', `${a.lastName}, ${a.firstName}`); field('DNI', a.dni); field('Código Universitario', a.studentCode);
@@ -118,7 +120,7 @@ export function makePdf(team: FullTeam, kind: string, participationId?: number, 
     paragraph('Yo, la persona identificada en el presente formato, en calidad de estudiante participante del Torneo Deportivo de Pregrado por el XVII Aniversario Institucional de la Universidad Nacional de Cañete, DECLARO BAJO JURAMENTO:');
     numbered(fitnessStatements);
     paragraph('Declaro que la información consignada es veraz y suscribo este documento de manera voluntaria.', 9, 10);
-    paragraph('Lugar y fecha: San Luis - Cañete, ____ / ____ / 2026', 9, 10); signature(a);
+    paragraph(`Lugar y fecha: Cañete, ${generated.long}`, 9, 10); signature(a);
   } else if (kind === 'responsibility') {
     const a = p!.athlete;
     field('Apellidos y Nombres', `${a.lastName}, ${a.firstName}`, 156); field('Código Universitario', a.studentCode, 156);
@@ -131,7 +133,7 @@ export function makePdf(team: FullTeam, kind: string, participationId?: number, 
     choices([{ label: 'Participaré en una (01) disciplina.', checked: disciplines.length === 1 }, { label: 'Participaré en dos (02) disciplinas.', checked: disciplines.length === 2 }], LEFT, WIDTH, 8.8);
     paragraph(`Disciplina 1: ${disciplines[0] || team.category.name}     Disciplina 2 (si aplica): ${disciplines[1] || '____________________________'}`, 9, 7);
     paragraph('Confirmo que los datos proporcionados son verdaderos y acepto los compromisos detallados.', 9, 9);
-    paragraph('Lugar y fecha: San Luis - Cañete, ____ / ____ / 2026', 9, 7); signature(a);
+    paragraph(`Lugar y fecha: Cañete, ${generated.long}`, 9, 7); signature(a);
   } else if (kind === 'receipt') {
     paragraph('Se deja constancia de la recepción del expediente de inscripción del equipo indicado a continuación, para su revisión por la comisión organizadora.', 10, 22);
     section('DATOS DE LA RECEPCIÓN');
@@ -147,7 +149,7 @@ export function makePdf(team: FullTeam, kind: string, participationId?: number, 
     paragraph('Documento generado electrónicamente por el sistema de inscripciones deportivas de la Universidad Nacional de Cañete.', 8.5, 0);
   } else {
     paragraph('Se utiliza al recibir las inscripciones. No sustituye las declaraciones juradas firmadas por cada estudiante.', 9.2, 7);
-    field('Escuela profesional', team.school.name); field('Disciplina / categoría', team.category.name); field('Delegado/a', team.delegate.name); field('Fecha de recepción', '____ / ____ / 2026');
+    field('Escuela profesional', team.school.name); field('Disciplina / categoría', team.category.name); field('Delegado/a', team.delegate.name); field('Fecha de elaboración', generated.short);
     const review = team.reviews[0], values = (review?.checks || {}) as Record<string, boolean>;
     doc.y += 22; section('LISTA DE VERIFICACIÓN');
     const lines = [
@@ -175,7 +177,7 @@ export function makePdf(team: FullTeam, kind: string, participationId?: number, 
     doc.switchToPage(i);
     const bottomMargin = doc.page.margins.bottom;
     doc.page.margins.bottom = 0;
-    doc.font('Helvetica').fontSize(6).fillColor('#697780').text(`${kind === 'receipt' ? 'Constancia de recepción · No equivale a aprobación' : team.id ? `Expediente ${team.id} · Versión ${team.version}` : 'Formato para firma · No constituye una inscripción'} | Página ${i + 1} de ${pages.count}`, LEFT, 818, { width: WIDTH, align: 'right', lineBreak: false });
+    doc.font('Helvetica').fontSize(6).fillColor('#697780').text(`Generado: ${generated.dateTime} | ${kind === 'receipt' ? 'Recepción · No equivale a aprobación' : team.id ? `Expediente ${team.id} · V${team.version}` : 'Formato para firma · Sin inscripción'} | Página ${i + 1} de ${pages.count}`, LEFT, 818, { width: WIDTH, align: 'right', lineBreak: false });
     doc.page.margins.bottom = bottomMargin;
   }
   return doc;

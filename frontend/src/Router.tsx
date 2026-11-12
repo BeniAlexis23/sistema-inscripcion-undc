@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { PublicRegistration } from './Public';
+import { StaffRegistration } from './StaffPublic';
 const AdminApp = lazy(() => import('./App'));
 const Setup = lazy(() => import('./Setup'));
 export function App() {
@@ -9,5 +10,5 @@ export function App() {
   if (location.pathname === '/admin' || location.pathname.startsWith('/admin/')) {
     return <Suspense fallback={<div className="grid min-h-screen place-items-center text-sm text-muted-foreground">Cargando administración…</div>}><AdminApp/></Suspense>;
   }
-  return <Routes><Route path="/" element={<PublicRegistration/>}/><Route path="/inscripcion" element={<Navigate to="/" replace/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes>;
+  return <Routes><Route path="/" element={<PublicRegistration/>}/><Route path="/personal" element={<StaffRegistration/>}/><Route path="/inscripcion" element={<Navigate to="/" replace/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes>;
 }

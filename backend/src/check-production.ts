@@ -9,6 +9,8 @@ try {
   await access(path.join(config.frontendDist, 'index.html'));
   await access(path.join(config.publicDocuments, 'bases-torneo-undc-2026.pdf'));
   await access(path.join(config.publicDocuments, 'formatos-torneo-undc-2026.pdf'));
+  await access(path.join(config.publicDocuments, 'bases-personal-undc-2026.pdf'));
+  await access(path.join(config.publicDocuments, 'formatos-personal-undc-2026.pdf'));
   await mkdir(config.storage, { recursive: true });
   const probe = path.join(config.storage, `.startup-${randomUUID()}`);
   await writeFile(probe, 'ok', { flag: 'wx' });

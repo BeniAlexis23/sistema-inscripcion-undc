@@ -12,5 +12,6 @@ try {
   ];
   for (const [name, discipline, gender] of entries) await prisma.category.upsert({ where: { discipline_gender: { discipline, gender } }, create: { name, discipline, gender }, update: {} });
   await prisma.tournament.upsert({ where: { id: 1 }, create: { id: 1, name: 'XVII Aniversario Institucional UNDC 2026', semester: '2026-II', opensAt: new Date('2026-11-06T00:00:00-05:00'), closesAt: new Date('2026-11-19T23:59:00-05:00') }, update: {} });
+  await prisma.staffEvent.upsert({ where: { id: 1 }, create: { id: 1, name: 'Torneo Deportivo del Personal Docente y Administrativo - XVII Aniversario UNDC 2026', opensAt: new Date('2026-11-05T00:00:00-05:00'), closesAt: new Date('2026-11-16T18:00:00-05:00') }, update: {} });
   console.log('Catálogos cargados. Fechas iniciales propuestas: revisar con la comisión.');
 } finally { await prisma.$disconnect(); }

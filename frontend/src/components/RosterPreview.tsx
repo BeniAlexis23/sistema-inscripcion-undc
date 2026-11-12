@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 
 export function RosterPreview({ data, onClose, endpoint = '/public/formats/roster', title = 'Vista previa de la ficha del equipo', description = 'Revisa los datos, descarga la ficha e imprímela para recoger la firma del delegado.', filename = 'UNDC-ficha-equipo.pdf', downloadLabel = 'Descargar para firmar' }: { data?: unknown; onClose: () => void; endpoint?: string; title?: string; description?: string; filename?: string; downloadLabel?: string }) {
   const [url, setUrl] = useState('');
+  const [image, setImage] = useState(false);
   const [error, setError] = useState('');
   const dialog = useRef<HTMLElement>(null);
   const close = useRef<HTMLButtonElement>(null);
@@ -43,6 +44,7 @@ export function RosterPreview({ data, onClose, endpoint = '/public/formats/roste
         const blob = await response.blob();
         if (controller.signal.aborted) return;
         objectUrl = URL.createObjectURL(blob);
+        setImage(blob.type.startsWith('image/'));
         setUrl(objectUrl);
       } catch (e) {
         if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'No se pudo cargar el PDF.');
@@ -57,9 +59,9 @@ export function RosterPreview({ data, onClose, endpoint = '/public/formats/roste
         <div><h2 id="roster-preview-title" className="text-lg font-semibold">{title}</h2><p id="roster-preview-description" className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p></div>
         <Button ref={close} type="button" variant="ghost" size="icon" aria-label="Cerrar vista previa" onClick={onClose}><X/></Button>
       </div>
-      <div className="min-h-0 flex-1 bg-slate-100">
+      <div className="min-h-0 flex-1 overflow-auto bg-slate-100">
         {error ? <p role="alert" className="m-5 rounded-lg bg-red-50 p-4 text-sm text-red-800">{error}</p>
-          : url ? <iframe src={url} title={title} className="h-full w-full border-0"/>
+          : url ? image ? <img src={url} alt={title} className="mx-auto h-auto max-w-full"/> : <iframe src={url} title={title} className="h-full w-full border-0"/>
           : <p role="status" className="flex h-full items-center justify-center gap-3 text-sm"><LoaderCircle className="size-5 animate-spin"/>Generando vista previa…</p>}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t p-4 sm:px-6">

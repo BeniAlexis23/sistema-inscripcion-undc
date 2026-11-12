@@ -173,3 +173,76 @@ model Audit {
   details    Json
   createdAt  DateTime  @default(now())
 }
+
+// Separate competition: never shares student identities, school quotas or rules.
+model StaffEvent {
+  id Int @id @default(autoincrement())
+  name String @db.VarChar(200)
+  opensAt DateTime
+  closesAt DateTime
+  basesUrl String? @db.VarChar(2048)
+  formatsUrl String? @db.VarChar(2048)
+  teams StaffTeam[]
+}
+model StaffTeam {
+  id Int @id @default(autoincrement())
+  eventId Int
+  event StaffEvent @relation(fields: [eventId], references: [id])
+  category String @db.VarChar(30)
+  name String @db.VarChar(100)
+  dependency String @db.VarChar(200)
+  workplace String @db.VarChar(150)
+  mixedDependencies Boolean @default(false)
+  delegate Json
+  status TeamStatus @default(SUBMITTED)
+  receiptCode String @unique @db.VarChar(36)
+  editTokenHash String @db.VarChar(64)
+  receivedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  version Int @default(1)
+  participants StaffParticipant[]
+  documents StaffDocument[]
+  reviews StaffReview[]
+  @@index([eventId, category, status, receivedAt])
+}
+model StaffParticipant {
+  id Int @id @default(autoincrement())
+  teamId Int
+  team StaffTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  eventId Int
+  category String @db.VarChar(30)
+  position Int
+  firstName String @db.VarChar(100)
+  lastName String @db.VarChar(150)
+  documentType String @db.VarChar(10)
+  documentNumber String @db.VarChar(20)
+  sex Sex
+  phone String @db.VarChar(20)
+  employment String @db.VarChar(20)
+  dependency String @db.VarChar(200)
+  @@unique([eventId, category, documentType, documentNumber])
+  @@unique([teamId, position])
+}
+model StaffDocument {
+  id Int @id @default(autoincrement())
+  teamId Int
+  team StaffTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  field String @db.VarChar(40)
+  originalName String @db.VarChar(255)
+  storageName String @unique @db.VarChar(100)
+  mime String @db.VarChar(60)
+  size Int
+  createdAt DateTime @default(now())
+  @@unique([teamId, field])
+}
+model StaffReview {
+  id Int @id @default(autoincrement())
+  teamId Int
+  team StaffTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  actorId Int
+  actorName String @db.VarChar(150)
+  action String @db.VarChar(30)
+  notes String @db.Text
+  checks Json
+  createdAt DateTime @default(now())
+}

@@ -1,5 +1,20 @@
 # Inscripciones deportivas UNDC 2026
 
+## Inscripción de personal docente y administrativo
+
+- Vista pública independiente: `/personal`. Pregrado continúa en `/`.
+- Bandeja de comisión/administración: `/admin/personal`; revisión, observación, reapertura con motivo, configuración de fechas/enlaces y descargas privadas.
+- DNI/CE/otro, condición docente/administrativo/locador, dependencia y sede. No comparte identidades, escuelas ni restricciones estudiantiles con pregrado.
+- Futsal varones (12 equipos), futsal damas (8), vóleibol mixto (12); planteles de máximo diez. Vóleibol exige poder formar 3/3, 4/2 o 5/1 damas/varones en cancha.
+- Ficha firmada y dos declaraciones individuales por participante. Identidad y vínculo vigente se verifican manualmente en el panel, sin exigir esos adjuntos al público. Agrupaciones de dependencias distintas requieren autorización adjunta y validación manual.
+- Solicitudes incompletas no se registran. El cupo se confirma al aprobar con todos los controles y documentos cotejados. La aprobación se serializa para no exceder el aforo; deben revisarse primero los expedientes completos anteriores de la misma categoría.
+- El delegado guarda un enlace privado (token de 256 bits, almacenado con hash) para consultar y subsanar dentro del plazo. El token viaja en el fragmento y se valida por POST. Cambiar datos exige un expediente nuevamente firmado y completo.
+- Al completar el envío se abre el PDF de registro completo: recepción, estado, equipo, delegado, nómina y relación de documentos. Puede guardarse desde la vista previa y recuperarse mediante el enlace privado o el panel administrativo. Se genera exclusivamente a partir de datos persistidos y no incluye la clave de acceso.
+- PDF rellenados sobre las páginas originales de personal, con firmas en blanco. No se solicitan diagnósticos ni huellas.
+- Cierre inicial: 16/11/2026, 18:00 en Lima. Configuración independiente de pregrado.
+
+La migración `202611120001_staff_registration` solo agrega tablas. En local: `pnpm db:sync` y `pnpm db:seed`. En Dokploy el arranque aplica migraciones y seed: subir cambios y redesplegar sin borrar volúmenes ni alterar credenciales. Los adjuntos usan el volumen privado existente. Cada expediente admite hasta 22 archivos de 10 MB; revisar el límite total del proxy/CDN si lo hubiera.
+
 Despliegue de producción: consultar [la guía de Dokploy](docs/DOKPLOY.md). Incluye Compose, HTTPS, persistencia, alta administrativa por consola y respaldos. El entorno local continúa sin Docker.
 
 Aplicación cliente-servidor para el XVII Aniversario Institucional, con un formulario público precedido por la información del evento y un panel administrativo privado. React, TypeScript, Tailwind CSS y componentes shadcn/ui en `frontend/`; Express, TypeScript, Prisma y MySQL en `backend/`.

@@ -19,6 +19,7 @@ import { makePdf } from './pdf.js';
 import { publicRouter } from './public.js';
 import { setupRouter } from './setup.js';
 import { reportsRouter } from './reports.js';
+import { staffPublic, staffAdmin } from './staff.js';
 import { presentTeam } from './services.js';
 import { detectMime } from './uploads.js';
 export { detectMime } from './uploads.js';
@@ -42,6 +43,7 @@ app.use((req, _res, next) => {
 const api = express.Router();
 app.use('/api/v1', api);
 api.use('/public', publicRouter);
+api.use('/public/staff', staffPublic);
 api.use('/setup', setupRouter);
 const idOf = (value: unknown) => z.coerce.number().int().positive().parse(value);
 const paging = (query: Record<string, unknown>) => ({
@@ -64,6 +66,7 @@ api.post('/sessions', rateLimit({ windowMs: 15 * 60000, limit: 20, standardHeade
 });
 const dummyHash = argon2.hash(randomUUID());
 api.use(authenticate);
+api.use('/staff', staffAdmin);
 api.use('/reports', reportsRouter);
 api.get('/sessions/me', (req, res) => { res.json(publicUser(currentUser(req))); });
 api.delete('/sessions', async (req, res) => {

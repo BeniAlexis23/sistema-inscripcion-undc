@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { StaffAdmin } from './StaffAdmin';
 import {
   Link,
   NavLink,
@@ -6,6 +7,7 @@ import {
   Route,
   Routes,
   useNavigate,
+  useLocation,
   useParams,
 } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -278,6 +280,8 @@ function AdminApp() {
           element={<TeamDetail user={user} catalog={catalog} />}
         />
         <Route path="/admin/reviews" element={<Navigate to="/admin/teams" replace />} />
+        {user.role !== 'DELEGATE' && <Route path="/admin/personal" element={<StaffAdmin/>}/>}
+        {user.role !== 'DELEGATE' && <Route path="/admin/personal/:id" element={<StaffAdmin/>}/>}
         {user.role !== "DELEGATE" && <Route path="/admin/reports" element={<Reports catalog={catalog}/>} />}
         {user.role === "ADMIN" && (
           <Route
@@ -442,10 +446,12 @@ function Shell({
   logout: () => Promise<void>;
   children: ReactNode;
 }) {
+  const staffView = useLocation().pathname.startsWith('/admin/personal');
   const [open, setOpen] = useState(false),
     [error, setError] = useState("");
   const navigation = [
     { path: "/admin", label: "Resumen general", icon: LayoutDashboard },
+    ...(user.role !== 'DELEGATE' ? [{ path: '/admin/personal', label: 'Docentes y administrativos', icon: Users }] : []),
     ...(user.role !== "DELEGATE" ? [{ path: "/admin/reports", label: "Reportes", icon: FileText }] : []),
     {
       path: "/admin/teams",
@@ -474,7 +480,8 @@ function Shell({
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[238px] flex-col bg-[#103f75] px-5 py-7 text-white transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
+        aria-label="Menú de administración"
+        className={`fixed inset-y-0 left-0 z-40 flex h-dvh w-[238px] flex-col overflow-y-auto overscroll-y-contain bg-[#103f75] px-5 py-7 text-white transition-transform [scrollbar-width:thin] [&>*]:shrink-0 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
       >
         <Link to="/admin" className="flex items-center gap-3 px-2">
           <div className="grid size-9 place-items-center rounded-lg border border-white/25">
@@ -495,7 +502,7 @@ function Shell({
           <p className="text-[10px] uppercase tracking-widest text-[#d8c395]">
             XVII Aniversario
           </p>
-          <p className="mt-1 text-xs text-white/70">Torneo de Pregrado 2026</p>
+          <p className="mt-1 text-xs text-white/70">{staffView ? 'Personal docente y administrativo 2026' : 'Torneo de Pregrado 2026'}</p>
         </div>
         <p className="mb-3 px-3 text-[9px] font-bold tracking-[2px] text-white/35">
           ESPACIO DE TRABAJO
@@ -521,8 +528,7 @@ function Shell({
             <ShieldCheck className="mb-2 size-5 text-[#d5e8ff]" />
             <p className="text-xs font-medium">Juego limpio desde el inicio</p>
             <p className="mt-2 text-[11px] leading-relaxed text-white/45">
-              Cada estudiante representa a su escuela en un máximo de dos
-              disciplinas.
+              {staffView ? 'Participación con vínculo vigente acreditado. Nóminas de hasta diez integrantes y verificación manual de la comisión.' : 'Cada estudiante representa a su escuela en un máximo de dos disciplinas.'}
             </p>
           </div>
           <NavLink to="/admin/account" className="nav-item mt-5">
@@ -560,7 +566,7 @@ function Shell({
               Portal de inscripciones{" "}
               <span className="mx-2 text-border">/</span>
               <strong className="font-medium text-foreground">
-                Semestre 2026-II
+                {staffView ? 'Personal · 2026' : 'Semestre 2026-II'}
               </strong>
             </span>
           </div>
