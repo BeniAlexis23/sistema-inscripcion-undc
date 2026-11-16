@@ -28,7 +28,15 @@ export const app = express();
 app.disable('x-powered-by');
 // Production is reachable only through Dokploy's Traefik proxy (one hop).
 if (config.production) app.set('trust proxy', 1);
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      // Previews fetch authorized files, then display private in-memory blob URLs.
+      frameSrc: ["'self'", 'blob:'],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+    },
+  },
+}));
 app.use(cors({ origin: config.origin, credentials: true }));
 app.use(express.json({ limit: '100kb' }), cookieParser());
 // Mutations require a same-origin custom header. Browsers cannot forge this in a form POST.

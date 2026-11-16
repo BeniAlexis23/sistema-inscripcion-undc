@@ -24,6 +24,15 @@ describe('Despliegue de producción', () => {
     const response = await request(app).get('/api/v1/teams');
     expect(response.status).toBe(401); expect(response.type).toBe('application/json');
   });
+  it('permite las vistas previas blob sin habilitar scripts ni marcos externos', async () => {
+    const response = await request(app).get('/personal');
+    const policy = Object.fromEntries(response.headers['content-security-policy'].split(';').map((part: string) => { const [name, ...values] = part.trim().split(/\s+/); return [name, values]; }));
+    expect(policy['frame-src']).toEqual(["'self'", 'blob:']);
+    expect(policy['img-src']).toEqual(["'self'", 'data:', 'blob:']);
+    expect(policy['script-src']).toEqual(["'self'"]);
+    expect(policy['frame-ancestors']).toEqual(["'self'"]);
+    expect(policy['object-src']).toEqual(["'none'"]);
+  });
   it('informa indisponibilidad si MySQL deja de responder', async () => {
     expect((await request(app).get('/api/v1/health')).status).toBe(200);
     state.query.mockRejectedValueOnce(new Error('offline'));

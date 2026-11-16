@@ -1,5 +1,12 @@
 # Verificación de la primera versión
 
+## Vista previa en producción — 16/11/2026
+
+- Confirmadas las cabeceras públicas del sitio: la CSP predeterminada no permitía `blob:` para marcos ni imágenes, por eso el visor fallaba aunque funcionara bajo Vite.
+- Política ajustada a `frame-src 'self' blob:` e `img-src 'self' data: blob:`. Se mantienen restricciones de scripts, objetos y orígenes que pueden embeber el portal.
+- Cinco pruebas de producción correctas y compilación del backend correcta. Prueba de navegador contra Express en modo producción con datos simulados: PDF público/administrativo, imagen en móvil, descarga explícita y ausencia de bloqueos CSP de marcos/imágenes. No se modificaron registros de la base.
+- Despliegue remoto pendiente de subir este cambio y pulsar Deploy; no requiere cambios de base, archivos ni variables.
+
 ## Módulo de personal — 12/11/2026
 
 - Registro completo en PDF: vista previa automática tras enviar, descarga explícita y recuperación posterior. Acceso público solo mediante clave privada; acceso administrativo restringido a comisión/administración. Pruebas de paginación con diez integrantes y nombres extensos. Total actualizado: 70 pruebas aprobadas y compilación correcta.
