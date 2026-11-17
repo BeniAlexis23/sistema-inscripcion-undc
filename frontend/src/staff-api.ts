@@ -20,7 +20,7 @@ export function documentLabel(field: string, participants: StaffPerson[]) {
 }
 export const staffCheckLabels: Record<string, string> = {
   roster: 'Ficha oficial firmada y nómina de máximo diez participantes', capacity: 'Cupo disponible y orden de recepción del expediente válido',
-  identity: 'Identidades cotejadas; sin duplicados en la categoría', employment: 'Vínculo actual con la UNDC verificado manualmente en cada participante',
+  identity: 'Identidades cotejadas; sin duplicados dentro del mismo equipo', employment: 'Vínculo actual con la UNDC verificado manualmente en cada participante',
   fitness: 'Declaraciones individuales de aptitud física firmadas', responsibility: 'Declaraciones individuales de responsabilidad firmadas',
   delegate: 'Declaración del delegado, identidad y contacto', composition: 'Sexo de futsal o composición reglamentaria de vóleibol mixto',
   authorization: 'Autorización previa de distintas dependencias verificada, o no corresponde',

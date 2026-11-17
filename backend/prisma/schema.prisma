@@ -220,7 +220,8 @@ model StaffParticipant {
   phone String @db.VarChar(20)
   employment String @db.VarChar(20)
   dependency String @db.VarChar(200)
-  @@unique([eventId, category, documentType, documentNumber])
+  @@unique([teamId, documentType, documentNumber])
+  @@index([eventId, category])
   @@unique([teamId, position])
 }
 model StaffDocument {

@@ -84,11 +84,12 @@ describe.skipIf(!url)('Personal: expediente completo MySQL y privacidad', () => 
     const pdf = await request(app).post('/api/v1/public/staff/formats/roster').set(H).send(input); expect(pdf.status).toBe(200); expect(pdf.headers['content-type']).toContain('application/pdf');
     await review(team.id, 'APPROVED');
   });
-  it('serializa identidad simultánea en una categoría, permite otra y limpia archivos fallidos', async () => {
+  it('permite una persona en varios equipos de la misma categoría y rechaza duplicados en una nómina', async () => {
     const first = data(), second = { ...first, name: 'Otro equipo de prueba' };
     const before = await readdir(config.storage);
-    const results = await Promise.all([send(first), send(second)]); expect(results.map(r => r.status).sort()).toEqual([201, 409]);
-    expect((await readdir(config.storage)).length - before.length).toBe(3);
+    const results = await Promise.all([send(first), send(second)]); expect(results.map(r => r.status)).toEqual([201, 201]);
+    expect((await readdir(config.storage)).length - before.length).toBe(6);
+    expect((await send({ ...first, name: 'Duplicado dentro de equipo', participants: [first.participants[0], first.participants[0]] })).status).toBe(422);
     const cross: StaffInput = { ...first, category: 'VOLLEYBALL_MIXED', participants: [...first.participants, ...Array.from({ length: 5 }, (_, i) => ({ ...data().participants[0], sex: i < 3 ? 'FEMALE' as const : 'MALE' as const }))] };
     expect((await send(cross)).status).toBe(201);
   });

@@ -1,5 +1,12 @@
 # Verificación de la primera versión
 
+## Participación en varios equipos y validación — 17/11/2026
+
+- Migración de índice aplicada en MySQL local y de pruebas sin borrar datos. Se admiten altas simultáneas de una persona en distintos equipos de la misma categoría; se rechazan duplicados internos de nómina.
+- Corregidas las rutas de errores de DNI (delegado y participante), mensajes legibles para cada campo y validación por paso. El formulario usa validación propia para evitar bloqueos silenciosos del navegador.
+- 74 pruebas aprobadas y compilación completa correcta. Regresión de navegador con datos simulados: DNI inválido de delegado y participante, celular inválido y avance tras corregir.
+- En producción es necesario subir código y migración y redesplegar; no reiniciar volúmenes ni modificar fechas de inscripción.
+
 ## Vista previa en producción — 16/11/2026
 
 - Confirmadas las cabeceras públicas del sitio: la CSP predeterminada no permitía `blob:` para marcos ni imágenes, por eso el visor fallaba aunque funcionara bajo Vite.

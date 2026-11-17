@@ -5,6 +5,8 @@
 - Vista pública independiente: `/personal`. Pregrado continúa en `/`.
 - Bandeja de comisión/administración: `/admin/personal`; revisión, observación, reapertura con motivo, configuración de fechas/enlaces y descargas privadas.
 - DNI/CE/otro, condición docente/administrativo/locador, dependencia y sede. No comparte identidades, escuelas ni restricciones estudiantiles con pregrado.
+- Personal puede integrar distintos equipos, incluso de la misma categoría. Solo se impide repetir el documento dentro de una misma nómina. La migración `202611170001_staff_multiple_teams` sustituye el índice anterior sin borrar registros.
+- Los errores de inscripción indican participante/campo y enfocan el dato a corregir; Enter y Continuar validan el paso antes de avanzar.
 - Futsal varones (12 equipos), futsal damas (8), vóleibol mixto (12); planteles de máximo diez. Vóleibol exige poder formar 3/3, 4/2 o 5/1 damas/varones en cancha.
 - Ficha firmada y dos declaraciones individuales por participante. Identidad y vínculo vigente se verifican manualmente en el panel, sin exigir esos adjuntos al público. Agrupaciones de dependencias distintas requieren autorización adjunta y validación manual.
 - Solicitudes incompletas no se registran. El cupo se confirma al aprobar con todos los controles y documentos cotejados. La aprobación se serializa para no exceder el aforo; deben revisarse primero los expedientes completos anteriores de la misma categoría.

@@ -83,9 +83,6 @@ staffPublic.post('/registrations', limiter, async (_req, _res, next) => { await 
       }
       const team = fresh ? await tx.staffTeam.update({ where: { id: fresh.id }, data: { ...teamData, receivedAt: new Date(), version: { increment: 1 } } }) : await tx.staffTeam.create({ data: { ...teamData, eventId: event.id, receiptCode: randomUUID(), editTokenHash: hashToken(token) } });
       for (const [position, p] of data.participants.entries()) {
-        const existing = await tx.staffParticipant.findMany({ where: { eventId: event.id, documentType: p.documentType, documentNumber: p.documentNumber } });
-        assert(!existing.some(a => a.category === data.category), 'Una persona ya integra otro equipo de esta categoría.', 409);
-        assert(existing.every(a => a.firstName === p.firstName && a.lastName === p.lastName && a.sex === p.sex), 'Los datos de identidad no coinciden con otra inscripción. Contacte a la comisión.');
         await tx.staffParticipant.create({ data: { ...p, teamId: team.id, eventId: event.id, category: data.category, position } });
       }
       for (const file of files) await tx.staffDocument.create({ data: { teamId: team.id, field: file.fieldname, storageName: file.filename, originalName: path.basename(file.originalname).replace(/[\x00-\x1f]/g, '').slice(0, 255), mime: file.mimetype, size: file.size } });
