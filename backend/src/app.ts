@@ -20,6 +20,7 @@ import { publicRouter } from './public.js';
 import { setupRouter } from './setup.js';
 import { reportsRouter } from './reports.js';
 import { staffPublic, staffAdmin } from './staff.js';
+import { stagedUploads } from './staged-uploads.js';
 import { presentTeam } from './services.js';
 import { detectMime } from './uploads.js';
 export { detectMime } from './uploads.js';
@@ -52,6 +53,7 @@ const api = express.Router();
 app.use('/api/v1', api);
 api.use('/public', publicRouter);
 api.use('/public/staff', staffPublic);
+api.use('/public/uploads', stagedUploads);
 api.use('/setup', setupRouter);
 const idOf = (value: unknown) => z.coerce.number().int().positive().parse(value);
 const paging = (query: Record<string, unknown>) => ({
@@ -260,6 +262,7 @@ const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
     if (error.code === 'P2034') return res.status(409).json({ message: 'Otra operación modificó los datos. Vuelva a intentarlo.' });
   }
   if (error?.type === 'entity.parse.failed') return res.status(400).json({ message: 'El cuerpo JSON no es válido.' });
+  if (error?.type === 'entity.too.large') return res.status(413).json({ message: 'La solicitud supera el tamaño permitido. Actualice la página y vuelva a intentarlo.' });
   console.error('Error interno:', error?.code || error?.name || 'Unknown');
   return res.status(500).json({ message: 'No se pudo completar la operación. Verifique la conexión con la base de datos.' });
 };

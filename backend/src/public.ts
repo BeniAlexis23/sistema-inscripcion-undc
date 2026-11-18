@@ -9,6 +9,7 @@ import { config, prisma } from './config.js';
 import { athleteSchema, teamSelectionShape } from './validation.js';
 import { assert, checkCategory, checkDisciplines, checkRoster, checkWindow, normalize } from './rules.js';
 import { detectMime } from './uploads.js';
+import { claimStagedUploads } from './staged-uploads.js';
 import { makePdf } from './pdf.js';
 import type { FullTeam } from './services.js';
 
@@ -75,7 +76,7 @@ const upload = multer({
   storage: multer.diskStorage({ destination: (_req, _file, callback) => callback(null, config.storage), filename: (_req, _file, callback) => callback(null, randomUUID()) }),
   limits: { fileSize: 10 * 1024 * 1024, files: 25, fields: 1, fieldSize: 100 * 1024, parts: 26 },
 });
-publicRouter.post('/registrations', publicLimit, async (_req, _res, next) => { await mkdir(config.storage, { recursive: true }); next(); }, upload.any(), async (req, res) => {
+publicRouter.post('/registrations', publicLimit, async (_req, _res, next) => { await mkdir(config.storage, { recursive: true }); next(); }, upload.any(), claimStagedUploads('pregrado'), async (req, res) => {
   const files = (req.files || []) as Express.Multer.File[];
   let committed = false;
   try {

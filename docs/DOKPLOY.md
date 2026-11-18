@@ -67,7 +67,7 @@ Entrar a `https://TU_DOMINIO/admin` y configurar fechas de inscripción, subsana
 - Registrar un expediente de validación autorizado con sus documentos; revisarlo en el panel y comprobar acceso privado a adjuntos.
 - Redesplegar y comprobar que inscripciones, sesiones y archivos siguen disponibles.
 
-Si hay 403 de origen, revisar `FRONTEND_ORIGIN`; si falla el acceso, revisar HTTPS y cookies. Si hay 502, revisar salud y Logs de `web`/`mysql` y puerto 4000. Los adjuntos individuales admiten 10 MB; una nómina completa puede cargar hasta 25 archivos y superar 100 MB en total. Si usas otro proxy/CDN delante de Dokploy, ajustar su límite y tiempo de carga al expediente completo, o usar DNS sin ese proxy para este subdominio.
+Si hay 403 de origen, revisar `FRONTEND_ORIGIN`; si falla el acceso, revisar HTTPS y cookies. Si hay 502, revisar salud y Logs de `web`/`mysql` y puerto 4000. Los adjuntos individuales admiten 10 MB. Los formularios actuales suben los archivos por fragmentos de 1 MB y confirman con una petición JSON pequeña; redesplegar frontend y backend juntos para activar este flujo. Los clientes anteriores siguen enviando el multipart completo, que puede superar 100 MB y alcanzar el timeout del proxy. Si una conexión tarda más del límite incluso por fragmento, revisar `entryPoints.websecure.transport.respondingTimeouts.readTimeout` en la configuración estática de Traefik. Un corte de carga a los 60 segundos se comprobó en producción mediante una petición vacía y lenta, sin crear inscripciones.
 
 ## 7. Persistencia y respaldos
 

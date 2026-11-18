@@ -152,6 +152,14 @@ Listados: `page`, `pageSize` (máximo 100); equipos admiten `status`, `schoolId`
 
 ## Consistencia y almacenamiento
 
+### Carga de expedientes detrás de un proxy
+
+Los formularios de pregrado y personal envían cada adjunto en fragmentos de hasta 1 MB y muestran el avance. La confirmación final envía únicamente los datos y referencias firmadas, conservando la transacción y todas las validaciones del expediente. Así, una carga completa de 21 o 25 archivos no ocupa una única petición durante más de un minuto. No se reintenta automáticamente la confirmación final para evitar duplicar una recepción cuya respuesta se perdió.
+
+Las rutas públicas `/public/uploads`, `/public/uploads/:id/chunks/:index` y `/public/uploads/:id/complete` preparan los archivos. Cada referencia es privada, distingue pregrado/personal, vence a las dos horas y se consume una sola vez al enviar. Los temporales y su clave de firma se guardan en `STORAGE_DIR/.pending-uploads`, fuera del contenido público; los temporales vencidos se limpian al iniciar cargas posteriores. No borrar esa carpeta durante cargas activas ni publicar su contenido. Se mantiene el máximo de 10 MB por archivo. La API sigue aceptando el multipart anterior para clientes existentes.
+
+Para activar esta mejora, subir el código y redesplegar frontend y backend juntos en Dokploy. No requiere migraciones ni dependencias nuevas. La producción no cambia hasta redesplegar. Los fragmentos también están sujetos a los límites del proxy: una conexión que tarde más de su tiempo máximo incluso en enviar 1 MB puede necesitar un ajuste adicional en Traefik.
+
 El envío público es atómico: guarda equipo, contacto del delegado, nómina, documentos y auditoría; si falla una validación, revierte la transacción y elimina los archivos temporales. Se limita la frecuencia de envíos públicos y se escriben los adjuntos en disco para evitar mantener el expediente completo en memoria.
 
 La API bloquea la fila del torneo con `SELECT ... FOR UPDATE` dentro de cada transacción de nómina, revisión o configuración. Esto serializa altas incluso cuando el estudiante todavía no existe y evita la tercera disciplina por carreras. Las identidades tienen restricciones únicas por DNI y código. La aprobación comprueba nuevamente los requisitos y usa la versión del expediente para rechazar revisiones obsoletas.

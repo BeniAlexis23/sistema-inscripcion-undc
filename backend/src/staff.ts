@@ -12,6 +12,7 @@ import { detectMime } from './uploads.js';
 import { staffSchema, staffCategories, staffFields, staffChecks, validateStaffRoster, type StaffInput } from './staff-rules.js';
 import { makeStaffPdf } from './staff-pdf.js';
 import { makeStaffReceipt } from './staff-receipt-pdf.js';
+import { claimStagedUploads } from './staged-uploads.js';
 
 export const staffPublic = Router(), staffAdmin = Router();
 staffAdmin.use(roles('ADMIN', 'COMMISSION'), (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
@@ -57,7 +58,7 @@ staffPublic.post('/receipts/:code', formatLimiter, async (req, res) => {
   res.type('pdf').attachment(`registro-personal-${team.receiptCode}.pdf`).send(await makeStaffReceipt(inputFrom(team), team));
 });
 const upload = multer({ storage: multer.diskStorage({ destination: (_r, _f, cb) => cb(null, config.storage), filename: (_r, _f, cb) => cb(null, randomUUID()) }), limits: { fileSize: 10 * 1024 * 1024, files: 22, fields: 3, parts: 25, fieldSize: 100 * 1024 } });
-staffPublic.post('/registrations', limiter, async (_req, _res, next) => { await mkdir(config.storage, { recursive: true }); next(); }, upload.any(), async (req, res) => {
+staffPublic.post('/registrations', limiter, async (_req, _res, next) => { await mkdir(config.storage, { recursive: true }); next(); }, upload.any(), claimStagedUploads('personal'), async (req, res) => {
   const files = (req.files || []) as Express.Multer.File[]; let committed = false;
   try {
     let raw: unknown; try { raw = JSON.parse(req.body.data || ''); } catch { assert(false, 'Datos de inscripción inválidos.'); }
