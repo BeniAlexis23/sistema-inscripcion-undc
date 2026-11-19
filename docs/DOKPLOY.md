@@ -12,7 +12,7 @@ La imagen instala con pnpm 11.25.0 y lockfile, compila React y TypeScript, gener
 
 En un proyecto de Dokploy crear un servicio **Docker Compose** (no Application ni Stack). Elegir proveedor Git/GitHub, repositorio y rama. Ruta del archivo Compose: `./docker-compose.yml`, contexto de construcción: raíz del repositorio.
 
-El Compose usa la red externa `dokploy-network` del servidor Dokploy y una red privada para MySQL. No publica puertos del host. No es necesario instalar MySQL adicionalmente ni crear otro servicio de base de datos en el panel.
+El Compose usa la red externa `dokploy-network` del servidor Dokploy y una red privada para MySQL. Para acceso directo desde HeidiSQL, MySQL también usa `db_access` y publica el puerto IPv4 `3307` del host hacia el `3306` del contenedor. Antes de desplegar, restringir TCP 3307 en el firewall del proveedor exclusivamente a la IP pública del administrador. No es necesario instalar MySQL adicionalmente ni crear otro servicio de base de datos en el panel. HeidiSQL: TCP/IP, IP pública del servidor, puerto 3307, usuario `undc`, contraseña `MYSQL_PASSWORD`, base `undc_deportes` y SSL activado.
 
 ## 3. Variables
 
@@ -41,7 +41,7 @@ Crear un registro DNS A del subdominio hacia la IP pública del servidor (y AAAA
 | HTTPS | Activado |
 | Certificate | Let's Encrypt |
 
-El dominio debe coincidir exactamente con `FRONTEND_ORIGIN`. No asignar dominio a `mysql`. Revisar **Preview Compose**: `web` debe conservar las redes privada y `dokploy-network`; MySQL solo la privada. Dokploy agrega las etiquetas Traefik del dominio. Desplegar nuevamente después de cambiar dominios. El acceso debe hacerse por Traefik; no publicar directamente el puerto de `web`, que confía en un salto de proxy para obtener la IP del cliente.
+El dominio debe coincidir exactamente con `FRONTEND_ORIGIN`. No asignar dominio a `mysql`. Revisar **Preview Compose**: `web` debe conservar las redes privada y `dokploy-network`; MySQL conserva `private` y `db_access`. Dokploy agrega las etiquetas Traefik del dominio. Desplegar nuevamente después de cambiar dominios. El acceso web debe hacerse por Traefik; no publicar directamente el puerto de `web`, que confía en un salto de proxy para obtener la IP del cliente.
 
 ## 5. Desplegar y crear el administrador
 

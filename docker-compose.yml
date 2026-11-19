@@ -33,6 +33,9 @@ services:
   mysql:
     image: mysql:8.4
     restart: unless-stopped
+    # Direct HeidiSQL access. Restrict TCP 3307 to your public IP in the provider firewall.
+    ports:
+      - '0.0.0.0:3307:3306'
     environment:
       MYSQL_DATABASE: undc_deportes
       MYSQL_USER: undc
@@ -44,6 +47,7 @@ services:
       - mysql_data:/var/lib/mysql
     networks:
       - private
+      - db_access
     healthcheck:
       # Server readiness only. web verifies the real credentials before migrating.
       test: [CMD, mysqladmin, --connect-timeout=3, --protocol=TCP, -h, 127.0.0.1, ping, --silent]
@@ -57,5 +61,7 @@ volumes:
 networks:
   private:
     internal: true
+  db_access:
+    driver: bridge
   dokploy-network:
     external: true
